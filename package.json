@@ -1,0 +1,49 @@
+{
+  "name" : "timingservice",
+  "version" : "0.0.1",
+  "main" : "./src/server.js",
+  "user" : "tidoust",
+  "scripts": {
+    "start": "./src/server.js"
+  },
+  "description": "Basic implementation in Node.js using a WebSocket server of an online timing resource as defined in the draft Timing Object spec developed by the W3C Multi-Device Timing Community Group.",
+  "keywords": [
+    "timing",
+    "clock",
+    "synchronization"
+  ],
+  "maintainers": [
+    {
+      "name": "François Daoust",
+      "email": "fd@w3.org"
+    }
+  ],
+  "engines": {
+    "node": "0.12.x",
+    "npm": "2.7.x"
+  },
+  "private": false,
+  "licenses": [
+    {
+      "type": "W3C",
+      "url": "LICENSE"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/tidoust/timingservice.git"
+  },
+  "dependencies": {
+    "amdefine": "0.1.0",
+    "requirejs": "2.1.17",
+    "underscore": "1.8.3",
+    "woodman": "1.1.0"
+  },
+  "devDependencies": {
+    "grunt": "0.4.5",
+    "grunt-contrib-concat": "0.5.1",
+    "grunt-contrib-requirejs" : "0.4.4",
+    "grunt-contrib-jshint": "0.11.2",
+    "jasmine-reporters": "2.0.6"
+  }
+}
