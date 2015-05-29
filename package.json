@@ -38,6 +38,7 @@
     "event-target": "0.1.0",
     "requirejs": "2.1.17",
     "underscore": "1.8.3",
+    "websocket": "1.0.19",
     "woodman": "1.1.0"
   },
   "devDependencies": {

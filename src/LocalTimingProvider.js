@@ -27,28 +27,10 @@ define(function (require) {
    */
   var LocalTimingProvider = function (vector, range) {
     AbstractTimingProvider.call(this, vector, range);
+    this.readyState = 'open';
     logger.info('created');
   };
   LocalTimingProvider.prototype = new AbstractTimingProvider();
-
-
-  /**
-   * Fetches the current motion from the online timing service.
-   *
-   * @function
-   * @returns {Promise} The promise to get a MediaStateVector that represents
-   *   the current motion from the server. Note that the "time" property of
-   *   the vector received by the server should be converted to an estimated
-   *   local time.
-   */
-  LocalTimingProvider.prototype.fetch = function () {
-    logger.log('fetch');
-    var currentVector = this.query();
-    return new Promise(function (resolve, reject) {
-      logger.info('fetch', currentVector);
-      resolve(currentVector);
-    });
-  };
 
 
   /**
@@ -88,12 +70,6 @@ define(function (require) {
       timestamp: timestamp
     };
     this.vector = new MediaStateVector(newVector);
-
-    logger.log('update', 'dispatch "change" event');
-    this.dispatchEvent({
-      type: 'change',
-      value: this.vector
-    });
 
     return new Promise(function (resolve, reject) {
       logger.log('update', 'done');

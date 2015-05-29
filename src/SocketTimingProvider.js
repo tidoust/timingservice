@@ -1,6 +1,31 @@
 /**
  * @file A timing provider object associated with an online timing server
  * using WebSockets.
+ *
+ * The socket timing provider object can send 5 different types of commands to
+ * the WebSockets server:
+ * - create: to create a timing object on the server
+ * - delete: to delete a timing object from the server
+ * - info: to retrieve the current media state vector (only done to initialize
+ *   the object to the right settings)
+ * - update: to update the media state vector
+ * - sync: to synchronize local clock with remote clock
+ *
+ * The socket timing provider object can receive 3 different types of responses:
+ * - info: Information about the timing object on the server
+ * - change: an update event, meaning the underlying vector was changed
+ * - sync: response to the sync command
+ *
+ * The socket timing provider object computes an approximation of the skew
+ * between the local clock and the server clock on a regular basis (several
+ * times per minute). It adjusts the timestamp of change events received from
+ * the server automatically based on that computation.
+ *
+ * The socket timing provider object tries to trigger change events only when
+ * appropriate meaning it will queue events that it believes need to be
+ * triggered in the future.
+ *
+ * TODO: recover from temporary network failures
  */
 
 // Ensure "define" is defined in node.js in the absence of require.js
@@ -16,37 +41,97 @@ define(function (require) {
   var AbstractTimingProvider = require('./AbstractTimingProvider');
   var MediaStateVector = require('./MediaStateVector');
   var isNull = require('./utils').isNull;
+  var W3CWebSocket = require('websocket').w3cwebsocket;
 
 
   /**
    * Creates a timing provider
    *
    * @class
+   * @param {String} url The Web socket URL of the remote timing object
    */
-  var SocketTimingProvider = function (vector, range) {
-    AbstractTimingProvider.call(this, vector, range);
-    logger.log('created');
+  var SocketTimingProvider = function (url) {
+    var self = this;
+
+    // Same the URL of the online object
+    this.url = url;
+
+    // Initialize the base class with default data
+    AbstractTimingProvider.call(this);
+
+    // Connect to the Web socket
+    this.socket = new W3CWebSocket(url, 'echo-protocol');
+
+    this.socket.onerror = function (err) {
+      logger.warn('WebSocket error', err);
+      logger.warn('TODO: implement a connection recovery mechanism');
+      self.readyState = 'closed';
+    };
+
+    this.socket.onopen = function () {
+      logger.info('WebSocket client connected');
+      self.socket.send(JSON.stringify({
+        type: 'info',
+        id: url
+      }, null, 2));
+    };
+
+    this.socket.onclose = function() {
+      logger.log('WebSocket closed');
+      self.readyState = 'closed';
+    };
+
+    this.socket.onmessage = function(e) {
+      if (typeof e.data === 'string') {
+        logger.log('message received from server', e.data);
+        try {
+          var msg = JSON.parse(e.data) || {};
+          if (msg.id !== url) {
+            logger.log('message is for another timing object, ignored');
+            return;
+          }
+
+          switch (msg.type) {
+          case 'info':
+            if (self.readyState === 'opening') {
+              logger.log('timing object info received');
+              AbstractTimingProvider.call(this, msg.vector, msg.range);
+              self.readyState = 'open';
+            }
+            else {
+              logger.log('timing object info already known, ignored');
+            }
+            break;
+
+          case 'change':
+            if (self.readyState === 'opening') {
+              logger.log('change event received, queue event, not yet open');
+              logger.warn('TODO: implement queue of events');
+            }
+            else {
+              logger.log('change event received');
+              logger.warn('TODO: process change event, convert timestamp, queue or fire');
+            }
+            break;
+
+          case 'sync':
+            logger.log('sync message received');
+            logger.warn('TODO: compute skew, process queue of events as needed');
+            break;
+
+          default:
+            logger.log('unknown message type received', msg.type);
+          }
+        }
+        catch (err) {
+          logger.warn('message from server could not be parsed as JSON');
+        }
+      }
+    };
+
+    logger.info('created');
   };
   SocketTimingProvider.prototype = new AbstractTimingProvider();
-
-
-  /**
-   * Fetches the current motion from the online timing service.
-   *
-   * @function
-   * @returns {Promise} The promise to get a MediaStateVector that represents
-   *   the current motion from the server. Note that the "time" property of
-   *   the vector received by the server should be converted to an estimated
-   *   local time.
-   */
-  SocketTimingProvider.prototype.fetch = function () {
-    logger.log('fetch');
-    var currentVector = this.query();
-    return new Promise(function (resolve, reject) {
-      logger.info('fetch', currentVector);
-      resolve(currentVector);
-    });
-  };
 
 
   /**
@@ -71,28 +156,14 @@ define(function (require) {
     vector = vector || {};
     logger.log('update', vector);
 
-    var timestamp = Date.now() / 1000.0;
-    var newVector = {
-      position: (isNull(vector.position) ?
-        this.vector.computePosition(timestamp) :
-        vector.position),
-      velocity: (isNull(vector.velocity) ?
-        this.vector.computeVelocity(timestamp) :
-        vector.velocity),
-      acceleration: (isNull(vector.acceleration) ?
-        this.vector.computeAcceleration(timestamp) :
-        vector.acceleration),
-      timestamp: timestamp
-    };
-    this.vector = new MediaStateVector(newVector);
-
-    logger.log('update', vector, 'dispatch "change" event');
-    this.dispatchEvent({
-      type: 'change',
-      value: this.vector
-    });
+    this.socket.send(JSON.stringify({
+      type: 'update',
+      id: this.url,
+      vector: vector
+    }, null, 2));
 
     return new Promise(function (resolve, reject) {
+      logger.warn('TODO: wait for the "change" to be acknowledged by the server');
       logger.info('update', vector, 'done');
       resolve(newVector);
     });

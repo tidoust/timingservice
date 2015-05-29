@@ -30,8 +30,47 @@ define(function (require) {
    * @param {Interval} range The initial range if one is to be defined
    */
   var AbstractTimingProvider = function (vector, range) {
-    this.vector = new MediaStateVector(vector);
     this.range = new Interval(range);
+
+    var currentVector = new MediaStateVector(vector);
+    var readyState = 'opening';
+    var self = this;
+    Object.defineProperties(this, {
+      readyState: {
+        get: function () {
+          return readyState;
+        },
+        set: function (state) {
+          if (state !== readyState) {
+            readyState = state;
+            logger.log('ready state updated, dispatch "readystatechange" event');
+            setTimeout(function () {
+              // Dispatch the event on next loop to give code that wants to
+              // listen to the initial change to "open" time to attach an event
+              // listener (local timing provider objects typically set the
+              // readyState property to "open" directly within the constructor)
+              self.dispatchEvent({
+                type: 'readystatechange',
+                value: readyState
+              });
+            }, 0);
+          }
+        }
+      },
+      vector: {
+        get: function () {
+          return currentVector;
+        },
+        set: function (vector) {
+          currentVector = vector;
+          logger.log('vector updated, dispatch "change" event');
+          self.dispatchEvent({
+            type: 'change',
+            value: currentVector
+          });
+        }
+      }
+    });
     logger.info('created');
   };
 
@@ -61,28 +100,6 @@ define(function (require) {
     });
     logger.log('query', currentVector);
     return currentVector;
-  };
-
-
-  /**
-   * Fetches the current motion from the online timing service.
-   *
-   * @function
-   * @returns {Promise} The promise to get a MediaStateVector that represents
-   *   the current motion from the server. Note that the "time" property of
-   *   the vector received by the server should be converted to an estimated
-   *   local time.
-   *   The promise is rejected if the connection with the online timing service
-   *   is not possible for some reason (no connection, timing object on the
-   *   server was deleted, timeout, permission issue).
-   */
-  AbstractTimingProvider.prototype.fetch = function () {
-    logger.log('fetch');
-    return new Promise(function (resolve, reject) {
-      var err = new Error('Abstract "fetch" method called');
-      logger.error(err);
-      reject(err);
-    });
   };
 
 

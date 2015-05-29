@@ -85,10 +85,10 @@ define(function (require) {
       else {
         stopDispatchingTimeUpdateEvents();
       }
-      self.dispatchEvent({
-        type: 'change',
-        value: evt.value
-      });
+      self.dispatchEvent(evt);
+    };
+    var readystatechangeListener = function (evt) {
+      self.dispatch(evt);
     };
 
 
@@ -106,6 +106,7 @@ define(function (require) {
      */
     var timingProvider = new LocalTimingProvider(vector, range);
     timingProvider.addEventListener('change', changeListener);
+    timingProvider.addEventListener('readystatechange', readystatechangeListener);
 
 
     /**
@@ -169,9 +170,14 @@ define(function (require) {
 
    
     /**
-     * Define the "srcObject" property
+     * Define the "srcObject" and "readyState" properties
      */
     Object.defineProperties(this, {
+      readyState: {
+        get: function () {
+          return timing.timingProvider.readyState;
+        }
+      },
       srcObject: {
         get: function () {
           // Do not return anything if the timing object is managed locally
@@ -190,10 +196,12 @@ define(function (require) {
             // Stop listening to the old timing provider
             if (previousProvider) {
               previousProvider.removeEventListener('change', changeListener);
+              previousProvider.removeEventListener('readystatechange', readystatechangeListener);
             }
             timing.master = false;
             timing.timingProvider = provider;
             provider.addEventListener('change', changeListener);
+            provider.addEventListener('readystatechange', readystatechangeListener);
             logger.info('now associated with third-party timing provider');
           }
           else {
@@ -207,6 +215,7 @@ define(function (require) {
               // Stop listening to the old timing provider
               if (previousProvider) {
                 previousProvider.removeEventListener('change', changeListener);
+                previousProvider.removeEventListener('readystatechange', readystatechangeListener);
               }
               timing.master = true;
               timing.timingProvider = new LocalTimingProvider(
@@ -223,7 +232,6 @@ define(function (require) {
     // TODO: implement "range"
     // TODO: implement "vector", "previousVector" properties (is that needed?)
     // TODO: implement "currentXXX" properties (is that needed?)
-    // TODO: implement "readyState" and related change event
     // TODO: implement on... event properties
 
     logger.info('created');
