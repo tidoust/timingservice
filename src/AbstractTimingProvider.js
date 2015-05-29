@@ -17,9 +17,9 @@ define(function (require) {
   var woodman = require('woodman');
   var logger = woodman.getLogger('AbstractTimingProvider');
 
-  var EventTarget = require('EventTarget');
-  var MediaStateVector = require('MediaStateVector');
-  var Interval = require('Interval');
+  var EventTarget = require('event-target');
+  var MediaStateVector = require('./MediaStateVector');
+  var Interval = require('./Interval');
 
 
   /**
@@ -32,7 +32,7 @@ define(function (require) {
   var AbstractTimingProvider = function (vector, range) {
     this.vector = new MediaStateVector(vector);
     this.range = new Interval(range);
-    logger.log('created');
+    logger.info('created');
   };
 
 
@@ -53,11 +53,12 @@ define(function (require) {
    */
   AbstractTimingProvider.prototype.query = function () {
     var timestamp = Date.now() / 1000.0;
-    var currentVector = new MediaStateVector(
-      this.vector.computePosition(timestamp),
-      this.vector.computeVelocity(timestamp),
-      this.vector.computeAcceleration(timestamp),
-      timestamp);
+    var currentVector = new MediaStateVector({
+      position: this.vector.computePosition(timestamp),
+      velocity: this.vector.computeVelocity(timestamp),
+      acceleration: this.vector.computeAcceleration(timestamp),
+      timestamp: timestamp
+    });
     logger.log('query', currentVector);
     return currentVector;
   };

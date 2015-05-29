@@ -21,23 +21,8 @@ define(function (require) {
   var woodman = require('woodman');
   var logger = woodman.getLogger('TimingObject');
 
-  var EventTarget = require('EventTarget');
-  var LocalTimingProvider = require('LocalTimingProvider');
-
-
-  /**
-   * Helper function to propagate a change event onto underlying object
-   *
-   * Remember to bind the function to the object on which it is to apply
-   * before using it with code such as:
-   *   var changeHandler = propagateChange.bind(obj);
-   *
-   * @function
-   * @param {Event} evt Change event to propagate
-   */
-  var propagateChange = function (evt) {
-    this.dispatchEvent('change', evt);
-  };
+  var EventTarget = require('event-target');
+  var LocalTimingProvider = require('./LocalTimingProvider');
 
 
   /**
@@ -48,6 +33,65 @@ define(function (require) {
    * @param {Interval} range The initial range if one is to be defined
    */
   var TimingObject = function (vector, range) {
+    var self = this;
+
+    /**
+     * Helper methods to start/stop dispatching time update events
+     * (only triggered when the object is moving)
+     *
+     * Note that setInterval is bound to the event loop and thus
+     * the precision of the timing update depends on the overall
+     * event loop "congestion".
+     *
+     * TODO: note that the object cannot be garbage collected as long as
+     * "timeupdate" events are being dispatched. Not sure that there is
+     * much we can do here.
+     *
+     * TODO: the code triggers the first event after 200ms. Should it rather
+     * trigger the first event right away?
+     */
+    var timeupdateInterval = null;
+    var startDispatchingTimeUpdateEvents = function () {
+      var frequency = 5;
+      if (timeupdateInterval) { return; }
+      logger.info('start dispatching "timeupdate" events');
+      timeupdateInterval = setInterval(function () {
+        logger.log('dispatch new "timeupdate" event');
+        self.dispatchEvent({
+          type: 'timeupdate'
+        });
+      }, Math.round(1000 / frequency));
+    };
+    var stopDispatchingTimeUpdateEvents = function () {
+      if (!timeupdateInterval) { return; }
+      logger.info('stop dispatching "timeupdate" events');
+      clearInterval(timeupdateInterval);
+      timeupdateInterval = null;
+    };
+
+
+    /**
+     * All "change" events received from the timing provider will be
+     * propagated on this object
+     */
+    var changeListener = function (evt) {
+      var vector = evt.value || {
+        velocity: 0.0,
+        acceleration: 0.0
+      };
+      if ((vector.velocity !== 0.0) || (vector.acceleration !== 0.0)) {
+        startDispatchingTimeUpdateEvents();
+      }
+      else {
+        stopDispatchingTimeUpdateEvents();
+      }
+      self.dispatchEvent({
+        type: 'change',
+        value: evt.value
+      });
+    };
+
+
     /**
      * Determine whether the timing object is managed locally or through
      * a third-party timing provider
@@ -61,39 +105,7 @@ define(function (require) {
      * change that behavior afterwards.
      */
     var timingProvider = new LocalTimingProvider(vector, range);
-
-    /**
-     * All "change" events received from the timing provider will be
-     * propagated on this object
-     */
-    var changeListener = propagateChange.bind(this);
-
-    /**
-     * Helper methods to start/stop dispatching time update events
-     * (only triggered when the object is moving)
-     *
-     * Note that setInterval is bound to the event loop and thus
-     * the precision of the timing update depends on the overall
-     * event loop "congestion".
-     *
-     * TODO: note that the object cannot be garbage collected as long as
-     * "timeupdate" events are being dispatched. Not sure that there is
-     * much we can do here.
-     */
-    var self = this;
-    var timeupdateInterval = null;
-    var startDispatchingTimeUpdateEvents = function () {
-      var delay = 5000;
-      if (timeupdateInterval) { return; }
-      timeupdateInterval = setInterval(function () {
-        self.dispatchEvent('timeupdate');
-      }, delay);
-    };
-    var stopDispatchingTimeUpdateEvents = function () {
-      if (!timeupdateInterval) { return; }
-      clearInterval(timeupdateInterval);
-      timeupdateInterval = null;
-    };
+    timingProvider.addEventListener('change', changeListener);
 
 
     /**
@@ -106,8 +118,10 @@ define(function (require) {
      *   time.
      */
     this.query = function () {
-      logger.log('query');
-      return timingProvider.query();
+      logger.log('query called');
+      var vector = timingProvider.query();
+      logger.info('query returns', vector);
+      return vector;
     };
 
 
@@ -130,17 +144,12 @@ define(function (require) {
      *  acceleration at the current time is used.
      */
     this.update = function (position, velocity, acceleration) {
-      timingProvider.update({
+      logger.log('update called');
+      return timingProvider.update({
         position: position,
         velocity: velocity,
         acceleration: acceleration
       });
-      if ((velocity !== 0.0) || (acceleration !== 0.0)) {
-        startDispatchingTimeUpdateEvents();
-      }
-      else {
-        stopDispatchingTimeUpdateEvents();
-      }
     };
 
 
@@ -151,8 +160,11 @@ define(function (require) {
      * @function
      */
     this.isMoving = function () {
+      logger.log('isMoving called');
       var vector = timingProvider.query();
-      return (vector.velocity !== 0.0) || (vector.acceleration !== 0.0);
+      var result = (vector.velocity !== 0.0) || (vector.acceleration !== 0.0);
+      logger.info('isMoving returns', result);
+      return result;
     };
 
    
@@ -182,6 +194,7 @@ define(function (require) {
             timing.master = false;
             timing.timingProvider = provider;
             provider.addEventListener('change', changeListener);
+            logger.info('now associated with third-party timing provider');
           }
           else {
             // The caller wants to remove the association with a third-party
@@ -200,6 +213,7 @@ define(function (require) {
                 previousProvider.query(),
                 previousProvider.range
               );
+              logger.info('now associated with local timing provider');
             }
           }
         }
@@ -212,7 +226,7 @@ define(function (require) {
     // TODO: implement "readyState" and related change event
     // TODO: implement on... event properties
 
-    logger.log('created');
+    logger.info('created');
   };
 
 

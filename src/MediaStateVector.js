@@ -56,7 +56,7 @@ define(function (require) {
      */
     this.timestamp = vector.timestamp || (Date.now() / 1000.0);
 
-    logger.log('created', this);
+    logger.info('created', this);
   };
 
 
@@ -68,9 +68,11 @@ define(function (require) {
    */
   MediaStateVector.prototype.computePosition = function (timestamp) {
     var elapsed = timestamp - this.timestamp;
-    return this.position +
+    var result = this.position +
       this.velocity * elapsed +
       0.5 * this.acceleration * elapsed * elapsed;
+    logger.log('compute position returns', result);
+    return result;
   };
 
 
@@ -82,8 +84,10 @@ define(function (require) {
    */
   MediaStateVector.prototype.computeVelocity = function (timestamp) {
     var elapsed = timestamp - this.timestamp;
-    return this.velocity +
+    var result = this.velocity +
       this.acceleration * elapsed;
+    logger.log('compute velocity returns', result);
+    return result;
   };
 
 
@@ -98,6 +102,7 @@ define(function (require) {
    * @param {Number} timestamp The reference time in seconds
    */
   MediaStateVector.prototype.computeAcceleration = function (timestamp) {
+    logger.log('compute acceleration returns', this.acceleration);
     return this.acceleration;
   };
 

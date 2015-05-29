@@ -15,9 +15,9 @@ define(function (require) {
   var woodman = require('woodman');
   var logger = woodman.getLogger('LocalTimingProvider');
 
-  var AbstractTimingProvider = require('AbstractTimingProvider');
-  var MediaStateVector = require('MediaStateVector');
-  var isNull = require('utils').isNull;
+  var AbstractTimingProvider = require('./AbstractTimingProvider');
+  var MediaStateVector = require('./MediaStateVector');
+  var isNull = require('./utils').isNull;
 
 
   /**
@@ -27,7 +27,7 @@ define(function (require) {
    */
   var LocalTimingProvider = function (vector, range) {
     AbstractTimingProvider.call(this, vector, range);
-    logger.log('created');
+    logger.info('created');
   };
   LocalTimingProvider.prototype = new AbstractTimingProvider();
 
@@ -71,7 +71,8 @@ define(function (require) {
    */
   LocalTimingProvider.prototype.update = function (vector) {
     vector = vector || {};
-    logger.log('update', vector);
+    vector = new MediaStateVector(vector);
+    logger.info('update', vector);
 
     var timestamp = Date.now() / 1000.0;
     var newVector = {
@@ -88,14 +89,14 @@ define(function (require) {
     };
     this.vector = new MediaStateVector(newVector);
 
-    logger.log('update', vector, 'dispatch "change" event');
+    logger.log('update', 'dispatch "change" event');
     this.dispatchEvent({
       type: 'change',
       value: this.vector
     });
 
     return new Promise(function (resolve, reject) {
-      logger.info('update', vector, 'done');
+      logger.log('update', 'done');
       resolve(newVector);
     });
   };

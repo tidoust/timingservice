@@ -12,6 +12,8 @@ define(function (require) {
   var woodman = require('woodman');
   var logger = woodman.getLogger('Interval');
 
+  var isNumber = require('./utils').isNumber;
+
 
   /**
    * Creates an interval
@@ -43,7 +45,7 @@ define(function (require) {
       this.lowInclude = range.lowInclude;
     }
 
-    logger.log('created');
+    logger.info('created');
   };
 
 

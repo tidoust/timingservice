@@ -16,7 +16,7 @@ if (typeof define !== 'function') {
 define(function (require) {
   var woodman = require('woodman');
   var logger = woodman.getLogger('TimingProviderFactory');
-  var TimingProvider = require('TimingProvider');
+  var AbstractTimingProvider = require('./AbstractTimingProvider');
 
 
   /**
@@ -35,7 +35,7 @@ define(function (require) {
    */
   TimingProviderFactory.create = function (timingobject) {
     return new Promise(function (resolve, reject) {
-      var provider = new TimingProvider(timingobject);
+      var provider = new AbstractTimingProvider(timingobject);
       resolve(provider);
     });
   };

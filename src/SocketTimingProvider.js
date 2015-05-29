@@ -13,9 +13,9 @@ define(function (require) {
   var woodman = require('woodman');
   var logger = woodman.getLogger('SocketTimingProvider');
 
-  var AbstractTimingProvider = require('AbstractTimingProvider');
-  var MediaStateVector = require('MediaStateVector');
-  var isNull = require('utils').isNull;
+  var AbstractTimingProvider = require('./AbstractTimingProvider');
+  var MediaStateVector = require('./MediaStateVector');
+  var isNull = require('./utils').isNull;
 
 
   /**
