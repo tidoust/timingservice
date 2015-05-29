@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "amdefine": "0.1.0",
+    "event-target": "0.1.0",
     "requirejs": "2.1.17",
     "underscore": "1.8.3",
     "woodman": "1.1.0"
