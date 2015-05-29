@@ -114,7 +114,7 @@ define(function (require) {
       ', velocity=' + this.velocity +
       ', acceleration=' + this.acceleration +
       ', time=' + this.time + ')';
-  }
+  };
 
 
   // Expose the Media State Vector constructor

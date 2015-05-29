@@ -34,10 +34,10 @@ define(function (require) {
    *   with an online timing object that matches the requested one.
    */
   TimingProviderFactory.create = function (timingobject) {
-    return new Promise(resolve, reject) {
+    return new Promise(function (resolve, reject) {
       var provider = new TimingProvider(timingobject);
       resolve(provider);
-    };
+    });
   };
 
 
@@ -51,8 +51,8 @@ define(function (require) {
    * @returns
    */
   TimingProviderFactory.delete = function (id) {
-    return new Promise(resolve, reject) {
+    return new Promise(function (resolve, reject) {
       resolve();
-    };
+    });
   };
 });

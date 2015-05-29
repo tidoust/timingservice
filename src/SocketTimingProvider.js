@@ -83,7 +83,7 @@ define(function (require) {
         this.vector.computeAcceleration(time) :
         vector.acceleration),
       time: time
-    );
+    };
     this.vector = new MediaStateVector(newVector);
 
     logger.log('update', vector, 'dispatch "change" event');

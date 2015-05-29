@@ -72,7 +72,7 @@ define(function (require) {
    */
   Interval.prototype.isSingular = function () {
     return this.low === this.high;
-  }
+  };
 
 
   // Expose the Interval class to the outer world
