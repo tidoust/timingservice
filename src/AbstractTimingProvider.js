@@ -52,12 +52,12 @@ define(function (require) {
    *   time.
    */
   AbstractTimingProvider.prototype.query = function () {
-    var time = Date.now();
+    var timestamp = Date.now() / 1000.0;
     var currentVector = new MediaStateVector(
-      this.vector.computePosition(time),
-      this.vector.computeVelocity(time),
-      this.vector.computeAcceleration(time),
-      time);
+      this.vector.computePosition(timestamp),
+      this.vector.computeVelocity(timestamp),
+      this.vector.computeAcceleration(timestamp),
+      timestamp);
     logger.log('query', currentVector);
     return currentVector;
   };

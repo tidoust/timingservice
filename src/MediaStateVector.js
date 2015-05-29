@@ -28,7 +28,7 @@ define(function (require) {
    * @param {Number} vector.position The initial position (0.0 if null)
    * @param {Number} vector.velocity The initial velocity (0.0 if null)
    * @param {Number} vector.acceleration The initial acceleration (0.0 if null)
-   * @param {Number} vector.time The initial time in ms (Now if not given)
+   * @param {Number} vector.timestamp The initial time in seconds (now if null)
    */
   var MediaStateVector = function (vector) {
     vector = vector || {};
@@ -54,7 +54,7 @@ define(function (require) {
      * The local time in milliseconds when the position, velocity and
      * acceleration are evaluated.
      */
-    this.time = vector.time || Date.now();
+    this.timestamp = vector.timestamp || (Date.now() / 1000.0);
 
     logger.log('created', this);
   };
@@ -64,10 +64,10 @@ define(function (require) {
    * Computes the position along the uni-dimensional axis at the given time
    *
    * @function
-   * @param {Number} time The reference time
+   * @param {Number} timestamp The reference time in seconds
    */
-  MediaStateVector.prototype.computePosition = function (time) {
-    var elapsed = time - this.time;
+  MediaStateVector.prototype.computePosition = function (timestamp) {
+    var elapsed = timestamp - this.timestamp;
     return this.position +
       this.velocity * elapsed +
       0.5 * this.acceleration * elapsed * elapsed;
@@ -78,10 +78,10 @@ define(function (require) {
    * Computes the velocity along the uni-dimensional axis at the given time
    *
    * @function
-   * @param {Number} time The reference time
+   * @param {Number} timestamp The reference time in seconds
    */
-  MediaStateVector.prototype.computeVelocity = function (time) {
-    var elapsed = time - this.time;
+  MediaStateVector.prototype.computeVelocity = function (timestamp) {
+    var elapsed = timestamp - this.timestamp;
     return this.velocity +
       this.acceleration * elapsed;
   };
@@ -95,9 +95,9 @@ define(function (require) {
    * acceleration which is unaffected by time.
    *
    * @function
-   * @param {Number} time The reference time
+   * @param {Number} timestamp The reference time in seconds
    */
-  MediaStateVector.prototype.computeAcceleration = function (time) {
+  MediaStateVector.prototype.computeAcceleration = function (timestamp) {
     return this.acceleration;
   };
 
@@ -113,7 +113,7 @@ define(function (require) {
     return '(position=' + this.position +
       ', velocity=' + this.velocity +
       ', acceleration=' + this.acceleration +
-      ', time=' + this.time + ')';
+      ', timestamp=' + this.timestamp + ')';
   };
 
 

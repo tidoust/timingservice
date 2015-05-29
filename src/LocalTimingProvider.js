@@ -73,18 +73,18 @@ define(function (require) {
     vector = vector || {};
     logger.log('update', vector);
 
-    var time = Date.now();
+    var timestamp = Date.now() / 1000.0;
     var newVector = {
       position: (isNull(vector.position) ?
-        this.vector.computePosition(time) :
+        this.vector.computePosition(timestamp) :
         vector.position),
       velocity: (isNull(vector.velocity) ?
-        this.vector.computeVelocity(time) :
+        this.vector.computeVelocity(timestamp) :
         vector.velocity),
       acceleration: (isNull(vector.acceleration) ?
-        this.vector.computeAcceleration(time) :
+        this.vector.computeAcceleration(timestamp) :
         vector.acceleration),
-      time: time
+      timestamp: timestamp
     };
     this.vector = new MediaStateVector(newVector);
 
