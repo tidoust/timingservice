@@ -34,9 +34,22 @@ define(function (require) {
   };
 
 
+  /**
+   * Serialize object as a JSON string
+   *
+   * @function
+   * @param {Object} obj The object to serialize as JSON string
+   * @return {String} The serialized JSON string
+   */
+  var stringify = function (obj) {
+    return JSON.stringify(obj, null, 2);
+  };
+
+
   // Expose helper functions to the outer world
   return {
     isNull: isNull,
-    isNumber: isNumber
+    isNumber: isNumber,
+    stringify: stringify
   };
 });

@@ -53,8 +53,6 @@ define(function (require) {
    */
   LocalTimingProvider.prototype.update = function (vector) {
     vector = vector || {};
-    vector = new MediaStateVector(vector);
-    logger.info('update', vector);
 
     var timestamp = Date.now() / 1000.0;
     var newVector = {
@@ -70,6 +68,7 @@ define(function (require) {
       timestamp: timestamp
     };
     this.vector = new MediaStateVector(newVector);
+    logger.info('update', this.vector);
 
     return new Promise(function (resolve, reject) {
       logger.log('update', 'done');

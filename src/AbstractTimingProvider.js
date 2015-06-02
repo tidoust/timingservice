@@ -132,6 +132,18 @@ define(function (require) {
   };
 
 
+  /**
+   * Closes the timing provider object, releasing any resource that the
+   * object might use.
+   *
+   * Note that a closed timing provider object cannot be re-used.
+   *
+   * @function
+   */
+  AbstractTimingProvider.prototype.close = function () {
+  };
+
+
   // Expose the class to the outer world
   return AbstractTimingProvider;
 });

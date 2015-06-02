@@ -11,6 +11,59 @@ var logger = woodman.getLogger('socket server');
 
 var WebSocketServer = require('websocket').server;
 var http = require('http');
+var _ = require('underscore');
+
+var TimingObject = require('./TimingObject');
+var stringify = require('./utils').stringify;
+
+
+/**
+ * Implement filtering logic
+ *
+ * TODO: put logic here to detect whether the specified origin is allowed.
+ *
+ * @function
+ * @param {String} origin The origin that sent the reuqest
+ * @returns {Boolean} true when the origin is allowed
+ */
+var originIsAllowed = function (origin) {
+  logger.warn('TODO: implement origin check!');
+  return true;
+}
+
+
+/**
+ * Creates a "change" event listener that broadcasts the change to all
+ * connected clients.
+ *
+ * @function
+ * @param {Object} msg The sync message received
+ * @returns {Object} Object to send back to the client over the socket
+ */
+var getChangeListenerFor = function (id) {
+  return function (evt) {
+    var value = evt.value;
+    connections = connections || [];
+    if (connections.length === 0) {
+      return;
+    }
+    var msg = stringify({
+      type: 'change',
+      id: id,
+      vector: value
+    });
+    connections.forEach(function (connection) {
+      connection.sendUTF(msg);
+    });
+    logger.log('broadcasted "change" event', 'id=' + id);
+  };
+};
+
+
+
+/**********************************************************************
+Main server loop
+**********************************************************************/
 
 // Load logger configuration
 woodman.load(woodmanConfig);
@@ -27,19 +80,20 @@ server.listen(8080, function () {
 logger.info('create HTTP server... done');
 
 logger.info('create WebSocket server...');
-wsServer = new WebSocketServer({
+var wsServer = new WebSocketServer({
   httpServer: server,
   autoAcceptConnections: false
 });
-logger.info('create WebSocket server... done')
+var connections = [];
+logger.info('create WebSocket server... done');
 
-var originIsAllowed = function (origin) {
-  // put logic here to detect whether the specified origin is allowed.
-  return true;
-}
+logger.info('load timing object storage...');
+logger.warn('TODO: implement proper storage with creation/deletion mechanism');
+var timingAndConnections = {};
+logger.info('load timing object storage... done');
 
-wsServer.on('request', function (request) {
-  logger.info(request);
+
+wsServer.addListener('request', function (request) {
   logger.log('connection request received', 'origin=' + request.origin);
   if (!originIsAllowed(request.origin)) {
     // Make sure we only accept requests from an allowed origin
@@ -49,20 +103,112 @@ wsServer.on('request', function (request) {
   }
 
   var connection = request.accept('echo-protocol', request.origin);
+  connections.push(connection);
   logger.info('connection accepted', 'origin=' + request.origin);
 
-  connection.on('message', function(message) {
+  connection.addListener('message', function (message) {
     if (message.type === 'utf8') {
       logger.info('received message', message.utf8Data);
-      // TODO: parse message as JSON and apply command
+      try {
+        var request = JSON.parse(message.utf8Data);
+
+        switch (request.type) {
+        case 'info':
+          // The client wants detailed information about the timing object
+          // The command is also used to associate the Web socket connection
+          // with the timing object so that "change" events propagate to all
+          // connected clients
+          var timing = timingAndConnections[request.id];
+          if (!timing) {
+            logger.warn('TODO: implement timing create/destroy mechanism');
+            timing = {
+              connections: [],
+              timing: new TimingObject(),
+              onchange: getChangeListenerFor(request.id)
+            };
+            timing.timing.addEventListener('change', timing.onchange);
+            timingAndConnections[request.id] = timing;
+          }
+          timing.connections.push(connection);
+          logger.log('new connection to timing object',
+            'id=' + request.id,
+            'nb=' + timing.connections.length);
+
+          logger.warn('TODO: add extra properties once available (e.g. range)');
+          connection.sendUTF(stringify({
+            type: 'info',
+            id: request.id,
+            vector: timing.timing.query()
+          }));
+          logger.log('sent timing info', 'id=' + request.id);
+          break;
+
+        case 'update':
+          // The client wants to update the Timing Object's vector
+          // Note that the update method will trigger a "change" event
+          // and thus send the update back to all connected connections
+          // including the one that sent the initial request
+          var vector = request.vector || {};
+          var timing = timingAndConnections[request.id];
+          if (timing) {
+            timing.timing.update(
+              vector.position,
+              vector.velocity,
+              vector.acceleration);
+            logger.log('updated timing object', 'id=' + request.id);
+            logger.warn('TODO: send update ack back to requester?');
+          }
+          else {
+            logger.warn('received an update request on unknown timing object',
+              'id=' + request.id, 'ignored');
+          }
+          break;
+
+        case 'sync':
+          // The client wants to synchronize its clock with that of the server
+          // NB: in this implementation, it's hard to measure the time taken to
+          // process the message. This would require digging into Web socket
+          // frames to record the time when the first byte is received.
+          var now = Math.round(Date.now() / 1000);
+          connection.sendUTF(stringify({
+            type: 'sync',
+            id: request.id,
+            client: {
+              sent: (message.client || {}).sent
+            },
+            server: {
+              received: now,
+              sent: now
+            }
+          }));
+          logger.log('sync message sent', 'id=' + request.id);
+          break;
+
+        default:
+          logger.log('unknown command',
+            'id=' + request.id, 'cmd=' + request.type, 'ignored');
+        }
+      }
+      catch (err) {
+        logger.warn('could not parse message as JSON', err);
+      }
     }
     else if (message.type === 'binary') {
-      logger.info('received binary message', 'ignoring',
+      logger.info('received binary message', 'ignored',
         'length=' + message.binaryData.length + ' bytes');
     }
   });
 
-  connection.on('close', function(reasonCode, description) {
+  connection.addListener('close', function(reasonCode, description) {
     logger.info('peer disconnected', 'address=' + connection.remoteAddress);
+    connection.removeAllListeners('message');
+    connection.removeAllListeners('close');
+    _.forEach(timingAndConnections, function (timingAndConnection) {
+      if (_.contains(timingAndConnection.connections, connection)) {
+        timingAndConnection.connections = _.without(
+          timingAndConnection.connections,
+          connection);
+      }
+    });
   });
 });

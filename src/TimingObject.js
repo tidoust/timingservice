@@ -75,6 +75,7 @@ define(function (require) {
      * propagated on this object
      */
     var changeListener = function (evt) {
+      logger.info('change event received', evt.value);
       var vector = evt.value || {
         velocity: 0.0,
         acceleration: 0.0
@@ -88,7 +89,10 @@ define(function (require) {
       self.dispatchEvent(evt);
     };
     var readystatechangeListener = function (evt) {
-      self.dispatch(evt);
+      if (evt.value === 'closed') {
+        stopDispatchingTimeUpdateEvents();
+      }
+      self.dispatchEvent(evt);
     };
 
 
@@ -175,21 +179,22 @@ define(function (require) {
     Object.defineProperties(this, {
       readyState: {
         get: function () {
-          return timing.timingProvider.readyState;
+          return timingProvider.readyState;
         }
       },
       srcObject: {
         get: function () {
           // Do not return anything if the timing object is managed locally
-          if (timing.master) {
+          if (master) {
             return null;
           }
           else {
-            return timing.timingProvider;
+            return timingProvider;
           }
         },
         set: function (provider) {
-          var previousProvider = timing.timingProvider;
+          var previousProvider = timingProvider;
+          var vector = null;
           if (provider) {
             // The caller wants to associate the timing object with a
             // third-party timing provider.
@@ -198,16 +203,24 @@ define(function (require) {
               previousProvider.removeEventListener('change', changeListener);
               previousProvider.removeEventListener('readystatechange', readystatechangeListener);
             }
-            timing.master = false;
-            timing.timingProvider = provider;
+            master = false;
+
+            // Start listening to the new provider, triggering a "change" event
+            timingProvider = provider;
             provider.addEventListener('change', changeListener);
             provider.addEventListener('readystatechange', readystatechangeListener);
+            if (timingProvider.readyState === 'open') {
+              changeListener({
+                type: 'change',
+                value: provider.query()
+              });
+            }
             logger.info('now associated with third-party timing provider');
           }
           else {
             // The caller wants to remove the association with a third-party
             // timing provider. The object gets back to being locally managed
-            if (timing.master) {
+            if (master) {
               // The timing object is already locally managed,
               // no need to change anything
             }
@@ -217,11 +230,19 @@ define(function (require) {
                 previousProvider.removeEventListener('change', changeListener);
                 previousProvider.removeEventListener('readystatechange', readystatechangeListener);
               }
-              timing.master = true;
-              timing.timingProvider = new LocalTimingProvider(
+              master = true;
+              timingProvider = new LocalTimingProvider(
                 previousProvider.query(),
                 previousProvider.range
               );
+              timingProvider.addEventListener('change', changeListener);
+              timingProvider.addEventListener('readystatechange', readystatechangeListener);
+              if (timingProvider.readyState === 'open') {
+                changeListener({
+                  type: 'change',
+                  value: timingProvider.query()
+                });
+              }
               logger.info('now associated with local timing provider');
             }
           }
