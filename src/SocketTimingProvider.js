@@ -48,10 +48,10 @@ define(function (require) {
 
 
   // Web Sockets ready state constants
-  const CONNECTING = 0;
-  const OPEN = 1;
-  const CLOSING = 2;
-  const CLOSED = 3;
+  var CONNECTING = 0;
+  var OPEN = 1;
+  var CLOSING = 2;
+  var CLOSED = 3;
 
 
   /**
@@ -196,7 +196,7 @@ define(function (require) {
       return new Promise(function (resolve, reject) {
         logger.warn('update', 'socket was closed, cannot process update');
         reject(new Error('Underlying socket was closed'));
-      })
+      });
     }
     this.socket.send(stringify({
       type: 'update',

@@ -107,90 +107,94 @@ wsServer.addListener('request', function (request) {
   logger.info('connection accepted', 'origin=' + request.origin);
 
   connection.addListener('message', function (message) {
+    var request = null;
+    var timing = null;
+
     if (message.type === 'utf8') {
       logger.info('received message', message.utf8Data);
       try {
-        var request = JSON.parse(message.utf8Data);
-
-        switch (request.type) {
-        case 'info':
-          // The client wants detailed information about the timing object
-          // The command is also used to associate the Web socket connection
-          // with the timing object so that "change" events propagate to all
-          // connected clients
-          var timing = timingAndConnections[request.id];
-          if (!timing) {
-            logger.warn('TODO: implement timing create/destroy mechanism');
-            timing = {
-              connections: [],
-              timing: new TimingObject(),
-              onchange: getChangeListenerFor(request.id)
-            };
-            timing.timing.addEventListener('change', timing.onchange);
-            timingAndConnections[request.id] = timing;
-          }
-          timing.connections.push(connection);
-          logger.log('new connection to timing object',
-            'id=' + request.id,
-            'nb=' + timing.connections.length);
-
-          logger.warn('TODO: add extra properties once available (e.g. range)');
-          connection.sendUTF(stringify({
-            type: 'info',
-            id: request.id,
-            vector: timing.timing.query()
-          }));
-          logger.log('sent timing info', 'id=' + request.id);
-          break;
-
-        case 'update':
-          // The client wants to update the Timing Object's vector
-          // Note that the update method will trigger a "change" event
-          // and thus send the update back to all connected connections
-          // including the one that sent the initial request
-          var vector = request.vector || {};
-          var timing = timingAndConnections[request.id];
-          if (timing) {
-            timing.timing.update(
-              vector.position,
-              vector.velocity,
-              vector.acceleration);
-            logger.log('updated timing object', 'id=' + request.id);
-            logger.warn('TODO: send update ack back to requester?');
-          }
-          else {
-            logger.warn('received an update request on unknown timing object',
-              'id=' + request.id, 'ignored');
-          }
-          break;
-
-        case 'sync':
-          // The client wants to synchronize its clock with that of the server
-          // NB: in this implementation, it's hard to measure the time taken to
-          // process the message. This would require digging into Web socket
-          // frames to record the time when the first byte is received.
-          var now = Math.round(Date.now() / 1000);
-          connection.sendUTF(stringify({
-            type: 'sync',
-            id: request.id,
-            client: {
-              sent: (message.client || {}).sent
-            },
-            server: {
-              received: now,
-              sent: now
-            }
-          }));
-          logger.log('sync message sent', 'id=' + request.id);
-          break;
-
-        default:
-          logger.log('unknown command',
-            'id=' + request.id, 'cmd=' + request.type, 'ignored');
-        }
+        request = JSON.parse(message.utf8Data);
       }
       catch (err) {
         logger.warn('could not parse message as JSON', err);
+        return;
+      }
+
+      timing = timingAndConnections[request.id];
+
+      switch (request.type) {
+      case 'info':
+        // The client wants detailed information about the timing object
+        // The command is also used to associate the Web socket connection
+        // with the timing object so that "change" events propagate to all
+        // connected clients
+        if (!timing) {
+          logger.warn('TODO: implement timing create/destroy mechanism');
+          timing = {
+            connections: [],
+            timing: new TimingObject(),
+            onchange: getChangeListenerFor(request.id)
+          };
+          timing.timing.addEventListener('change', timing.onchange);
+          timingAndConnections[request.id] = timing;
+        }
+        timing.connections.push(connection);
+        logger.log('new connection to timing object',
+          'id=' + request.id,
+          'nb=' + timing.connections.length);
+
+        logger.warn('TODO: add extra properties once available (e.g. range)');
+        connection.sendUTF(stringify({
+          type: 'info',
+          id: request.id,
+          vector: timing.timing.query()
+        }));
+        logger.log('sent timing info', 'id=' + request.id);
+        break;
+
+      case 'update':
+        // The client wants to update the Timing Object's vector
+        // Note that the update method will trigger a "change" event
+        // and thus send the update back to all connected connections
+        // including the one that sent the initial request
+        var vector = request.vector || {};
+        if (timing) {
+          timing.timing.update(
+            vector.position,
+            vector.velocity,
+            vector.acceleration);
+          logger.log('updated timing object', 'id=' + request.id);
+          logger.warn('TODO: send update ack back to requester?');
+        }
+        else {
+          logger.warn('received an update request on unknown timing object',
+            'id=' + request.id, 'ignored');
+        }
+        break;
+
+      case 'sync':
+        // The client wants to synchronize its clock with that of the server
+        // NB: in this implementation, it's hard to measure the time taken to
+        // process the message. This would require digging into Web socket
+        // frames to record the time when the first byte is received.
+        var now = Math.round(Date.now() / 1000);
+        connection.sendUTF(stringify({
+          type: 'sync',
+          id: request.id,
+          client: {
+            sent: (message.client || {}).sent
+          },
+          server: {
+            received: now,
+            sent: now
+          }
+        }));
+        logger.log('sync message sent', 'id=' + request.id);
+        break;
+
+      default:
+        logger.log('unknown command',
+          'id=' + request.id, 'cmd=' + request.type, 'ignored');
       }
     }
     else if (message.type === 'binary') {
