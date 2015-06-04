@@ -62,12 +62,18 @@ define(function (require) {
           return currentVector;
         },
         set: function (vector) {
+          var previousVector = currentVector;
           currentVector = vector;
-          logger.log('vector updated, dispatch "change" event');
-          self.dispatchEvent({
-            type: 'change',
-            value: currentVector
-          });
+          if (previousVector.compareTo(currentVector) === 0) {
+            logger.log('vector updated, same as before');
+          }
+          else {
+            logger.log('vector updated, dispatch "change" event');
+            self.dispatchEvent({
+              type: 'change',
+              value: currentVector
+            });
+          }
         }
       }
     });

@@ -103,14 +103,35 @@ define(function (require) {
     var master = true;
 
     /**
-     * Timing provider object associated with this timing object.
-     * Newly created timing object instances are associated with a
-     * local timing provider to start with. Set the "srcObject" to
-     * change that behavior afterwards.
+     * Timing provider object associated with this timing object,
+     * along with a couple of internal helper functions to associate/dissociate
+     * this timing object with a timing provider object.
      */
-    var timingProvider = new LocalTimingProvider(vector, range);
-    timingProvider.addEventListener('change', changeListener);
-    timingProvider.addEventListener('readystatechange', readystatechangeListener);
+    var timingProvider = null;
+
+    var associateWithTimingProvider = function (provider) {
+      var previousProvider = timingProvider;
+      dissociateFromTimingProvider(previousProvider);
+
+      timingProvider = provider;
+      provider.addEventListener('change', changeListener);
+      provider.addEventListener('readystatechange', readystatechangeListener);
+      if (previousProvider && (provider.readyState === 'open')) {
+        if (previousProvider.vector.compareTo(provider.vector) !== 0) {
+          changeListener({
+            type: 'change',
+            value: provider.query()
+          });
+        }
+      }
+    };
+
+    var dissociateFromTimingProvider = function (provider) {
+      if (provider) {
+        provider.removeEventListener('change', changeListener);
+        provider.removeEventListener('readystatechange', readystatechangeListener);
+      }
+    };
 
 
     /**
@@ -198,23 +219,11 @@ define(function (require) {
           if (provider) {
             // The caller wants to associate the timing object with a
             // third-party timing provider.
-            // Stop listening to the old timing provider
-            if (previousProvider) {
-              previousProvider.removeEventListener('change', changeListener);
-              previousProvider.removeEventListener('readystatechange', readystatechangeListener);
-            }
+            // (this may trigger a "change" event if vector exposed by
+            // the timing provider is different from the one we used
+            // to have)
             master = false;
-
-            // Start listening to the new provider, triggering a "change" event
-            timingProvider = provider;
-            provider.addEventListener('change', changeListener);
-            provider.addEventListener('readystatechange', readystatechangeListener);
-            if (timingProvider.readyState === 'open') {
-              changeListener({
-                type: 'change',
-                value: provider.query()
-              });
-            }
+            associateWithTimingProvider(provider);
             logger.info('now associated with third-party timing provider');
           }
           else {
@@ -225,24 +234,15 @@ define(function (require) {
               // no need to change anything
             }
             else {
-              // Stop listening to the old timing provider
-              if (previousProvider) {
-                previousProvider.removeEventListener('change', changeListener);
-                previousProvider.removeEventListener('readystatechange', readystatechangeListener);
-              }
+              // Associate with a new local timing provider
+              // (this should not trigger a "change" event since
+              // vector does not change internally)
               master = true;
-              timingProvider = new LocalTimingProvider(
+              provider = new LocalTimingProvider(
                 previousProvider.query(),
                 previousProvider.range
               );
-              timingProvider.addEventListener('change', changeListener);
-              timingProvider.addEventListener('readystatechange', readystatechangeListener);
-              if (timingProvider.readyState === 'open') {
-                changeListener({
-                  type: 'change',
-                  value: timingProvider.query()
-                });
-              }
+              associateWithTimingProvider(provider);
               logger.info('now associated with local timing provider');
             }
           }
@@ -254,6 +254,11 @@ define(function (require) {
     // TODO: implement "vector", "previousVector" properties (is that needed?)
     // TODO: implement "currentXXX" properties (is that needed?)
     // TODO: implement on... event properties
+
+    // Newly created timing object instances are associated with a local timing
+    // provider to start with. Set the "srcObject" property to change that
+    // behavior afterwards.
+    associateWithTimingProvider(new LocalTimingProvider(vector, range));
 
     logger.info('created');
   };

@@ -108,6 +108,55 @@ define(function (require) {
 
 
   /**
+   * Compares this vector with the specified vector for order. Returns a
+   * negative integer, zero, or a positive integer as this vector is less than,
+   * equal to, or greater than the specified object.
+   *
+   * Note that the notions of "less than" or "greater than" do not necessarily
+   * mean much when comparing motions. In practice, the specified vector is
+   * evaluated at the timestamp of this vector. Position is compared first.
+   * If equal, velocity is compared next. If equal, acceleration is compared.
+   *
+   * TODO: the function probably returns differences in cases where it should
+   * not because of the limited precision of floating numbers. Fix that.
+   *
+   * @function
+   * @param {MediaStateVector} vector The vector to compare
+   * @returns {Integer} The comparison result
+   */
+  MediaStateVector.prototype.compareTo = function (vector) {
+    var timestamp = this.timestamp;
+    var value = 0.0;
+
+    value = vector.computePosition(timestamp);
+    if (this.position < value) {
+      return -1;
+    }
+    else if (this.position > value) {
+      return 1;
+    }
+
+    value = vector.computeVelocity(timestamp);
+    if (this.velocity < value) {
+      return -1;
+    }
+    else if (this.velocity > value) {
+      return 1;
+    }
+
+    value = vector.computeAcceleration(timestamp);
+    if (this.acceleration < value) {
+      return -1;
+    }
+    else if (this.acceleration > value) {
+      return 1;
+    }
+
+    return 0;
+  };
+
+
+  /**
    * Overrides toString to return a meaningful string serialization of the
    * object for logging
    *
