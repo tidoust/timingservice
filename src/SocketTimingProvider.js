@@ -43,6 +43,7 @@ define(function (require) {
   var AbstractTimingProvider = require('./AbstractTimingProvider');
   var MediaStateVector = require('./MediaStateVector');
   var isNull = require('./utils').isNull;
+  var isNumber = require('./utils').isNumber;
   var stringify = require('./utils').stringify;
   var W3CWebSocket = require('websocket').w3cwebsocket;
 
@@ -70,6 +71,9 @@ define(function (require) {
     // identifier in exchanges with the backend server
     this.url = url;
 
+    // The estimation of the local clock's skew with the online server's clock
+    var skew = 0.0;
+
     // Initialize the base class with default data
     AbstractTimingProvider.call(this);
 
@@ -78,6 +82,7 @@ define(function (require) {
       this.socket = socket;
       if (socket.readyState === OPEN) {
         logger.info('WebSocket client connected');
+        startSync();
         this.socket.send(stringify({
           type: 'info',
           id: url
@@ -101,6 +106,7 @@ define(function (require) {
 
     this.socket.onopen = function () {
       logger.info('WebSocket client connected');
+      startSync();
       self.socket.send(stringify({
         type: 'info',
         id: url
@@ -114,9 +120,13 @@ define(function (require) {
     };
 
     this.socket.onmessage = function (evt) {
+      var msg = null;
+      var previousSkew = skew;
+      var received = Date.now() / 1000.0;
+      var vector = null;
+
       if (typeof evt.data === 'string') {
         logger.log('message received from server');
-        var msg = null;
         try {
           msg = JSON.parse(evt.data) || {};
         }
@@ -134,7 +144,13 @@ define(function (require) {
         case 'info':
           if (self.readyState === 'opening') {
             logger.log('timing object info received', msg.vector);
-            self.vector = new MediaStateVector(msg.vector);
+            vector = {
+              position: msg.vector.position,
+              velocity: msg.vector.velocity,
+              acceleration: msg.vector.acceleration,
+              timestamp: msg.vector.timestamp - skew
+            };
+            self.vector = new MediaStateVector(vector);
             logger.warn('TODO: set range as well');
             self.readyState = 'open';
           }
@@ -145,23 +161,85 @@ define(function (require) {
 
         case 'change':
           if (self.readyState === 'open') {
-            logger.log('change event received', msg.vector);
-            logger.warn('TODO: convert timestamp, queue or fire');
-            self.vector = new MediaStateVector(msg.vector);
+            logger.log('change message received');
+            vector = {
+              position: msg.vector.position,
+              velocity: msg.vector.velocity,
+              acceleration: msg.vector.acceleration,
+              timestamp: msg.vector.timestamp - skew
+            };
+            logger.warn('TODO: queue change if it lies in the future');
+            self.vector = new MediaStateVector(vector);
           }
           else {
-            logger.log('change event received, but not yet open, ignored');
+            logger.log('change message received, but not yet open, ignored');
           }
           break;
 
         case 'sync':
-          logger.log('sync message received');
-          logger.warn('TODO: compute skew, process queue of events as needed');
+          if (msg.client && msg.server &&
+              isNumber(msg.client.sent) &&
+              isNumber(msg.server.received) &&
+              isNumber(msg.server.sent)) {
+            skew = ((msg.server.sent + msg.server.received) -
+                (msg.client.sent + received)) / 2.0;
+            logger.log('sync message received', 'skew=' + skew);
+            if (skew !== previousSkew) {
+              logger.log('adjust local vector based on new skew');
+              self.vector = new MediaStateVector({
+                position: self.vector.position,
+                velocity: self.vector.velocity,
+                acceleration: self.vector.acceleration,
+                timestamp: self.vector.timestamp + previousSkew - skew
+              });
+              logger.warn('TODO: also update queue of events when we have one');
+            }
+          }
+          else {
+            logger.log('sync message received, but incomplete, ignored');
+          }
           break;
 
         default:
           logger.log('unknown message type received', msg.type);
         }
+      }
+    };
+
+
+    /**
+     * Method that starts computing the skew with the online server clock
+     * in the background
+     *
+     * Note this implementation is stupid, it computes the skew every 5 seconds
+     * without taking into account past measures and round trip times.
+     *
+     * TODO: consider sending more requests initially and giving priority to
+     * exchanges with the fastest round trip times, see the Media State Vector
+     * paper and/or the "Probabilistic clock synchronization" paper at:
+     * http://www.cs.utexas.edu/users/lorenzo/corsi/cs380d/papers/Cristian.pdf
+     */
+    var syncInterval = null;
+    var startSync = function () {
+      syncInterval = setInterval(function () {
+        logger.info('send a "sync" request');
+        self.socket.send(stringify({
+          type: 'sync',
+          id: url,
+          client: {
+            sent: Date.now() / 1000.0
+          }
+        }));
+      }, 1000);
+    };
+
+    /**
+     * Method that stops the background synchronization
+     */
+    this.stopSync = function () {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
       }
     };
 
@@ -190,7 +268,10 @@ define(function (require) {
    */
   SocketTimingProvider.prototype.update = function (vector) {
     vector = vector || {};
-    logger.log('update', vector);
+    logger.log('update',
+      '(position=' + vector.position +
+      ', velocity=' + vector.velocity +
+      ', acceleration=' + vector.acceleration + ')');
 
     if (this.readyState !== 'open') {
       return new Promise(function (resolve, reject) {
@@ -205,8 +286,7 @@ define(function (require) {
     }));
 
     return new Promise(function (resolve, reject) {
-      logger.warn('TODO: wait for the "change" to be acknowledged by the server');
-      logger.info('update', vector, 'done');
+      logger.warn('TODO: promise or not? ack from the server?');
       resolve(newVector);
     });
   };
@@ -221,6 +301,7 @@ define(function (require) {
    * @function
    */
   SocketTimingProvider.prototype.close = function () {
+    this.stopSync();
     this.socket.close();
   };
 
