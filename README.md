@@ -2,7 +2,7 @@
 
 This repository contains the source code of a prototype implementation in Node.js using a WebSocket server of an **online timing resource** as defined in the draft [Timing Object](http://webtiming.github.io/timingobject/) specification developed by the [Multi-Device Timing Community Group](http://www.w3.org/Community/webtiming) in W3C.
 
-**Important:** This is **work in progress** and **prototyping**. The code may not run properly and is only really meant to be used for testing. The initial goal is to explore the interfaces that need to be exposed and defined in the Timing Object specification, not necessarily to provide an accurate implementation of the spec. In particular, the clock synchronization mechanism implemented so far is crude and probably yields very bad results.
+**Important:** This is both **work in progress** and **a prototype**. The code may not run properly and is only really meant to be used for testing. The initial goal is to explore the interfaces that need to be exposed and defined in the Timing Object specification, not necessarily to provide an accurate implementation of the spec. In particular, the clock synchronization mechanism implemented so far is crude and probably yields very bad results.
 
 ## How to install
 
