@@ -26,8 +26,6 @@
  * The socket timing provider object tries to trigger change events only when
  * appropriate meaning it will queue events that it believes need to be
  * triggered in the future.
- *
- * TODO: recover from temporary network failures
  */
 
 // Ensure "define" is defined in node.js in the absence of require.js
@@ -44,7 +42,6 @@ define(function (require) {
   var MediaStateVector = require('./MediaStateVector');
   var SocketSyncClock = require('./SocketSyncClock');
   var isNull = require('./utils').isNull;
-  var isNumber = require('./utils').isNumber;
   var stringify = require('./utils').stringify;
   var W3CWebSocket = require('websocket').w3cwebsocket;
 
@@ -71,13 +68,116 @@ define(function (require) {
   var SocketTimingProvider = function (url, socket, clock) {
     var self = this;
 
-    // Save the URL of the online object, it is used as
-    // identifier in exchanges with the backend server
+    /**
+     * The URL of the online object, it is used as
+     * identifier in exchanges with the backend server
+     */
     this.url = url;
 
-    // Save the vector returned by the server to be able to adjust
-    // timestamps when synchronization parameters change
+    /**
+     * The current vector as returned by the server.
+     *
+     * Updating the property through the setter automatically updates
+     * the exposed vector as well, converting the server timestamp into
+     * a local timestamp based on the underlying synchronized clock's readings
+     */
     var serverVector = null;
+    Object.defineProperty(this, 'serverVector', {
+      get: function () {
+        return serverVector;
+      },
+      set: function (vector) {
+        var now = Date.now();
+        serverVector = vector;
+        self.vector = new MediaStateVector({
+          position: vector.position,
+          velocity: vector.velocity,
+          acceleration: vector.acceleration,
+          timestamp: vector.timestamp + (now - self.clock.getTime(now)) / 1000.0
+        });
+      }
+    });
+
+    /**
+     * List of "change" events already received from the server but
+     * whose estimated timestamps lie in the future
+     */
+    var pendingChanges = [];
+
+    /**
+     * The ID of the timeout used to trigger the first of the remaining
+     * pending change events to process
+     */
+    var pendingTimeoutId = null;
+
+    /**
+     * Helper function that schedules the propagation of the next pending
+     * change. Note that the function calls itself as long as there are
+     * pending changes to schedule.
+     *
+     * The function should be called whenever the synchronized clock reports
+     * changes on its skew evaluation, since that affects the time at which
+     * pending changes need to be executed.
+     */
+    var scheduleNextPendingChange = function () {
+      stopSchedulingPendingChanges();
+      if (pendingChanges.length === 0) {
+        return;
+      }
+
+      var now = Date.now();
+      var vector = pendingChanges[0];
+      var localTimestamp = (vector.timestamp * 1000.0) +
+        now - self.clock.getTime(now);
+      logger.log('schedule next pending change',
+        'delay=' + (localTimestamp - now));
+
+      var applyNextPendingChange = function () {
+        // Since we cannot control when this function runs precisely,
+        // note we may have to skip over the first few changes. We'll
+        // only trigger the change that is closest to now
+        logger.log('apply next pending change');
+        var now = Date.now();
+        var vector = pendingChanges.shift();
+        var nextVector = null;
+        var localTimestamp = 0.0;
+        while (pendingChanges.length > 0) {
+          nextVector = pendingChanges[0];
+          localTimestamp = nextVector.timestamp * 1000.0 +
+            now - self.clock.getTime(now);
+          if (localTimestamp > now) {
+            break;
+          }
+          vector = pendingChanges.shift();
+        }
+
+        self.serverVector = vector;
+        scheduleNextPendingChange();
+      };
+
+      if (localTimestamp > now) {
+        pendingTimeoutId = setTimeout(
+          applyNextPendingChange,
+          localTimestamp - now);
+      }
+      else {
+        applyNextPendingChange();
+      }
+    };
+
+
+    /**
+     * Helper function that stops the pending changes scheduler
+     *
+     * @function
+     */
+    var stopSchedulingPendingChanges = function () {
+      logger.log('stop scheduling pending changes');
+      if (pendingTimeoutId) {
+        clearTimeout(pendingTimeoutId);
+        pendingTimeoutId = null;
+      }
+    };
 
     // Initialize the base class with default data
     AbstractTimingProvider.call(this);
@@ -94,7 +194,7 @@ define(function (require) {
 
     this.socket.onerror = function (err) {
       logger.warn('WebSocket error', err);
-      logger.warn('TODO: implement a connection recovery mechanism');
+      // TODO: implement a connection recovery mechanism
     };
 
     this.socket.onopen = function () {
@@ -113,7 +213,8 @@ define(function (require) {
     this.socket.onmessage = function (evt) {
       var msg = null;
       var vector = null;
-      var localTimestamp = Date.now();
+      var now = Date.now();
+      var localTimestamp = 0;
 
       if (typeof evt.data === 'string') {
         try {
@@ -131,39 +232,57 @@ define(function (require) {
 
         switch (msg.type) {
         case 'info':
-          if (self.readyState === 'opening') {
-            logger.log('timing object info received', msg.vector);
-            serverVector = new MediaStateVector(msg.vector);
-            self.vector = new MediaStateVector({
-              position: serverVector.position,
-              velocity: serverVector.velocity,
-              acceleration: serverVector.acceleration,
-              timestamp: serverVector.timestamp +
-                (localTimestamp - self.clock.getTime(localTimestamp)) / 1000.0
-            });
-            logger.warn('TODO: set range as well');
-            self.readyState = 'open';
-          }
-          else {
+          if (self.readyState !== 'opening') {
             logger.log('timing object info already known, ignored');
+            return;
           }
+
+          logger.log('timing object info received', msg.vector);
+          if (self.clock.delta) {
+            // The info will be applied right away, but if the server imposes
+            // some delta to all clients (to improve synchronization), it
+            // should be applied to the timestamp received.
+            msg.vector.timestamp -= (self.clock.delta / 1000.0);
+          }
+          self.serverVector = new MediaStateVector(msg.vector);
+
+          // TODO: set the range as well when feature is implemented
+
+          self.readyState = 'open';
           break;
 
         case 'change':
-          if (self.readyState === 'open') {
-            logger.log('change message received');
-            serverVector = new MediaStateVector(msg.vector);
-            self.vector = new MediaStateVector({
-              position: serverVector.position,
-              velocity: serverVector.velocity,
-              acceleration: serverVector.acceleration,
-              timestamp: serverVector.timestamp +
-                (localTimestamp - self.clock.getTime(localTimestamp)) / 1000.0
-            });
-            logger.warn('TODO: queue change if it lies in the future');
+          if (self.readyState !== 'open') {
+            logger.log('change message received, but not yet open, ignored');
+            return;
+          }
+
+          // TODO: not sure what to do when the server sends an update with
+          // a timestamp that lies in the past of the current vector we have,
+          // ignoring for now
+          if (msg.vector.timestamp < self.serverVector.timestamp) {
+            logger.warn('change message received, but more ancient than current vector, ignored');
+            return;
+          }
+
+          // Create a new Media state vector from the one received
+          vector = new MediaStateVector(msg.vector);
+
+          // Determine whether the change event is to be applied now or to be
+          // queued up for later
+          localTimestamp = vector.timestamp * 1000.0 +
+              now - self.clock.getTime(now);
+          if (localTimestamp < now) {
+            logger.log('change message received, execute now');
+            self.serverVector = vector;
           }
           else {
-            logger.log('change message received, but not yet open, ignored');
+            logger.log('change message received, queue for later');
+            pendingChanges.push(vector);
+            pendingChanges.sort(function (a, b) {
+              return a.timestamp - b.timestamp;
+            });
+            scheduleNextPendingChange();
           }
           break;
         }
@@ -181,14 +300,15 @@ define(function (require) {
           return;
         }
         logger.log('adjust local vector based on new skew');
-        var localTimestamp = Date.now();
+        var now = Date.now();
         self.vector = new MediaStateVector({
-          position: serverVector.position,
-          velocity: serverVector.velocity,
-          acceleration: serverVector.acceleration,
-          timestamp: serverVector.timestamp +
-            (localTimestamp - self.clock.getTime(localTimestamp)) / 1000.0
+          position: self.serverVector.position,
+          velocity: self.serverVector.velocity,
+          acceleration: self.serverVector.acceleration,
+          timestamp: self.serverVector.timestamp +
+            (now - self.clock.getTime(now)) / 1000.0
         });
+        scheduleNextPendingChange();
       });
     }
 
@@ -248,7 +368,11 @@ define(function (require) {
     }));
 
     return new Promise(function (resolve, reject) {
-      logger.warn('TODO: to resolve the promise, need an ack from the server');
+      // TODO: To be able to resolve the promise, we would need to know
+      // when the server has received and processed the request. This
+      // requires an ack that does not yet exist. Also, should the promise
+      // only be resolved when the update is actually done (which may take
+      // place after some time and may actually not take place at all?)
       resolve(newVector);
     });
   };

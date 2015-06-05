@@ -20,8 +20,6 @@ var stringify = require('./utils').stringify;
 /**
  * Implement filtering logic
  *
- * TODO: put logic here to detect whether the specified origin is allowed.
- *
  * @function
  * @param {String} origin The origin that sent the reuqest
  * @returns {Boolean} true when the origin is allowed
@@ -29,7 +27,7 @@ var stringify = require('./utils').stringify;
 var originIsAllowed = function (origin) {
   logger.warn('TODO: implement origin check!');
   return true;
-}
+};
 
 
 /**
@@ -67,6 +65,22 @@ Main server loop
 
 // Load logger configuration
 woodman.load(woodmanConfig);
+
+/**
+ * The common delta in ms that all connected clients should apply
+ * to change messages received from the server (to improve synchronicity
+ * among clients)
+ */
+var delta = 0;
+if (process.argv.length > 2) {
+  try {
+    delta = parseInt(process.argv[2], 10);
+    logger.info('using delta... ' + delta);
+  }
+  catch (err) {
+    logger.warn('wrong delta argument passed on the command-line');
+  }
+}
 
 logger.info('create HTTP server...');
 var server = http.createServer(function (request, response) {
@@ -187,7 +201,8 @@ wsServer.addListener('request', function (request) {
           server: {
             received: now,
             sent: now
-          }
+          },
+          delta: delta
         }));
         logger.log('sync message sent', 'id=' + request.id);
         break;

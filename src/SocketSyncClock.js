@@ -73,7 +73,7 @@ define(function (require) {
     var errorHandler = this.socket.onerror;
     this.socket.onerror = function (err) {
       logger.warn('WebSocket error', err);
-      logger.warn('TODO: implement a connection recovery mechanism?');
+      // TODO: properly deal with network errors
       if (errorHandler) {
         errorHandler();
       }

@@ -22,11 +22,14 @@ var main = function () {
   setTimeout(function () {
     logger.info('close connection to timing provider...');
     timing.update(null, 0.0);
-    timingProvider.close();
 
-    logger.info('close connection to timing provider... done');
-    logger.info('sleep for a few seconds... done');
-    logger.info('The end');
+    setTimeout(function () {
+      timingProvider.close();
+
+      logger.info('close connection to timing provider... done');
+      logger.info('sleep for a few seconds... done');
+      logger.info('The end');
+    }, 5000);
   }, 5000);
 };
 
