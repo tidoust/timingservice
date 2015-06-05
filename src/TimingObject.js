@@ -144,9 +144,8 @@ define(function (require) {
      *   time.
      */
     this.query = function () {
-      logger.log('query called');
       var vector = timingProvider.query();
-      logger.info('query returns', vector);
+      logger.log('query returns', vector);
       return vector;
     };
 
@@ -189,7 +188,7 @@ define(function (require) {
       logger.log('isMoving called');
       var vector = timingProvider.query();
       var result = (vector.velocity !== 0.0) || (vector.acceleration !== 0.0);
-      logger.info('isMoving returns', result);
+      logger.log('isMoving returns', result);
       return result;
     };
 

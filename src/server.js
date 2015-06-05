@@ -177,7 +177,7 @@ wsServer.addListener('request', function (request) {
         // NB: in this implementation, it's hard to measure the time taken to
         // process the message. This would require digging into Web socket
         // frames to record the time when the first byte is received.
-        var now = Date.now() / 1000.0;
+        var now = Date.now();
         connection.sendUTF(stringify({
           type: 'sync',
           id: request.id,

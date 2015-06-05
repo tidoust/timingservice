@@ -51,7 +51,7 @@ define(function (require) {
               // readyState property to "open" directly within the constructor)
               self.dispatchEvent({
                 type: 'readystatechange',
-                value: readyState
+                value: state
               });
             }, 0);
           }
@@ -147,6 +147,12 @@ define(function (require) {
    * @function
    */
   AbstractTimingProvider.prototype.close = function () {
+    if ((this.readyState === 'closing') ||
+        (this.readyState === 'closed')) {
+      return;
+    }
+    this.readyState = 'closing';
+    this.readyState = 'closed';
   };
 
 
