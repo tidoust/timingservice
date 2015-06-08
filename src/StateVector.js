@@ -1,5 +1,5 @@
 /**
- * @file A Media State Vector is an object that describes uni-dimensional
+ * @file A State Vector is an object that describes uni-dimensional
  * motion in real time.
  *
  * The motion is described by four real numbers [p, v, a, t] representing
@@ -18,10 +18,10 @@ if (typeof define !== 'function') {
 
 define(function (require) {
   var woodman = require('woodman');
-  var logger = woodman.getLogger('msv');
+  var logger = woodman.getLogger('StateVector');
 
   /**
-   * Default constructor for a media state vector
+   * Default constructor for a state vector
    *
    * @class
    * @param {Object} vector The initial motion vector
@@ -30,7 +30,7 @@ define(function (require) {
    * @param {Number} vector.acceleration The initial acceleration (0.0 if null)
    * @param {Number} vector.timestamp The initial time in seconds (now if null)
    */
-  var MediaStateVector = function (vector) {
+  var StateVector = function (vector) {
     vector = vector || {};
 
     /**
@@ -66,7 +66,7 @@ define(function (require) {
    * @function
    * @param {Number} timestamp The reference time in seconds
    */
-  MediaStateVector.prototype.computePosition = function (timestamp) {
+  StateVector.prototype.computePosition = function (timestamp) {
     var elapsed = timestamp - this.timestamp;
     var result = this.position +
       this.velocity * elapsed +
@@ -82,7 +82,7 @@ define(function (require) {
    * @function
    * @param {Number} timestamp The reference time in seconds
    */
-  MediaStateVector.prototype.computeVelocity = function (timestamp) {
+  StateVector.prototype.computeVelocity = function (timestamp) {
     var elapsed = timestamp - this.timestamp;
     var result = this.velocity +
       this.acceleration * elapsed;
@@ -101,7 +101,7 @@ define(function (require) {
    * @function
    * @param {Number} timestamp The reference time in seconds
    */
-  MediaStateVector.prototype.computeAcceleration = function (timestamp) {
+  StateVector.prototype.computeAcceleration = function (timestamp) {
     logger.log('compute acceleration returns', this.acceleration);
     return this.acceleration;
   };
@@ -121,10 +121,10 @@ define(function (require) {
    * not because of the limited precision of floating numbers. Fix that.
    *
    * @function
-   * @param {MediaStateVector} vector The vector to compare
+   * @param {StateVector} vector The vector to compare
    * @returns {Integer} The comparison result
    */
-  MediaStateVector.prototype.compareTo = function (vector) {
+  StateVector.prototype.compareTo = function (vector) {
     var timestamp = this.timestamp;
     var value = 0.0;
 
@@ -163,7 +163,7 @@ define(function (require) {
    * @function
    * @returns {String} A human-readable serialization of the vector
    */
-  MediaStateVector.prototype.toString = function () {
+  StateVector.prototype.toString = function () {
     return '(position=' + this.position +
       ', velocity=' + this.velocity +
       ', acceleration=' + this.acceleration +
@@ -172,5 +172,5 @@ define(function (require) {
 
 
   // Expose the Media State Vector constructor
-  return MediaStateVector;
+  return StateVector;
 });

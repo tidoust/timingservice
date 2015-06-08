@@ -16,7 +16,7 @@ define(function (require) {
   var logger = woodman.getLogger('LocalTimingProvider');
 
   var AbstractTimingProvider = require('./AbstractTimingProvider');
-  var MediaStateVector = require('./MediaStateVector');
+  var StateVector = require('./StateVector');
   var isNull = require('./utils').isNull;
 
 
@@ -44,7 +44,7 @@ define(function (require) {
    *   If null, the velocity at the current time is used.
    * @param {Number} vector.acceleration The new acceleration.
    *   If null, the acceleration at the current time is used.
-   * @returns {Promise} The promise to get an updated MediaStateVector that
+   * @returns {Promise} The promise to get an updated StateVector that
    *   represents the updated motion on the server once the update command
    *   has been processed by the server.
    *   The promise is rejected if the connection with the online timing service
@@ -67,7 +67,7 @@ define(function (require) {
         vector.acceleration),
       timestamp: timestamp
     };
-    this.vector = new MediaStateVector(newVector);
+    this.vector = new StateVector(newVector);
     logger.info('update', this.vector);
 
     return new Promise(function (resolve, reject) {

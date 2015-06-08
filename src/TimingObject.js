@@ -29,7 +29,7 @@ define(function (require) {
    * Constructor of the timing object
    *
    * @class
-   * @param {MediaStateVector} vector The initial motion vector
+   * @param {StateVector} vector The initial motion vector
    * @param {Interval} range The initial range if one is to be defined
    */
   var TimingObject = function (vector, range) {
@@ -135,11 +135,11 @@ define(function (require) {
 
 
     /**
-     * Returns a new MediaStateVector that represents the motion's position,
+     * Returns a new StateVector that represents the motion's position,
      * velocity and acceleration at the current local time.
      *
      * @function
-     * @returns {MediaStateVector} A new MediaStateVector object that represents
+     * @returns {StateVector} A new StateVector object that represents
      *   the motion's position, velocity and acceleration at the current local
      *   time.
      */

@@ -18,7 +18,7 @@ define(function (require) {
   var logger = woodman.getLogger('AbstractTimingProvider');
 
   var EventTarget = require('event-target');
-  var MediaStateVector = require('./MediaStateVector');
+  var StateVector = require('./StateVector');
   var Interval = require('./Interval');
 
 
@@ -26,13 +26,13 @@ define(function (require) {
    * Creates a timing provider
    *
    * @class
-   * @param {MediaStateVector} vector The initial motion vector
+   * @param {StateVector} vector The initial motion vector
    * @param {Interval} range The initial range if one is to be defined
    */
   var AbstractTimingProvider = function (vector, range) {
     this.range = new Interval(range);
 
-    var currentVector = new MediaStateVector(vector);
+    var currentVector = new StateVector(vector);
     var readyState = 'opening';
     var self = this;
     Object.defineProperties(this, {
@@ -88,17 +88,17 @@ define(function (require) {
 
 
   /**
-   * Returns a new MediaStateVector that represents the motion's position,
+   * Returns a new StateVector that represents the motion's position,
    * velocity and acceleration at the current local time.
    *
    * @function
-   * @returns {MediaStateVector} A new MediaStateVector object that represents
+   * @returns {StateVector} A new StateVector object that represents
    *   the motion's position, velocity and acceleration at the current local
    *   time.
    */
   AbstractTimingProvider.prototype.query = function () {
     var timestamp = Date.now() / 1000.0;
-    var currentVector = new MediaStateVector({
+    var currentVector = new StateVector({
       position: this.vector.computePosition(timestamp),
       velocity: this.vector.computeVelocity(timestamp),
       acceleration: this.vector.computeAcceleration(timestamp),
@@ -120,7 +120,7 @@ define(function (require) {
    *   If null, the velocity at the current time is used.
    * @param {Number} vector.acceleration The new acceleration.
    *   If null, the acceleration at the current time is used.
-   * @returns {Promise} The promise to get an updated MediaStateVector that
+   * @returns {Promise} The promise to get an updated StateVector that
    *   represents the updated motion on the server once the update command
    *   has been processed by the server.
    *   The promise is rejected if the connection with the online timing service
@@ -128,7 +128,7 @@ define(function (require) {
    *   server was deleted, timeout, permission issue).
    */
   AbstractTimingProvider.prototype.update = function (vector) {
-    vector = new MediaStateVector(vector || {});
+    vector = new StateVector(vector || {});
     logger.log('update', vector);
     return new Promise(function (resolve, reject) {
       var err = new Error('Abstract "update" method called');

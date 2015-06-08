@@ -39,7 +39,7 @@ define(function (require) {
   var logger = woodman.getLogger('SocketTimingProvider');
 
   var AbstractTimingProvider = require('./AbstractTimingProvider');
-  var MediaStateVector = require('./MediaStateVector');
+  var StateVector = require('./StateVector');
   var SocketSyncClock = require('./SocketSyncClock');
   var isNull = require('./utils').isNull;
   var stringify = require('./utils').stringify;
@@ -89,7 +89,7 @@ define(function (require) {
       set: function (vector) {
         var now = Date.now();
         serverVector = vector;
-        self.vector = new MediaStateVector({
+        self.vector = new StateVector({
           position: vector.position,
           velocity: vector.velocity,
           acceleration: vector.acceleration,
@@ -244,7 +244,7 @@ define(function (require) {
             // should be applied to the timestamp received.
             msg.vector.timestamp -= (self.clock.delta / 1000.0);
           }
-          self.serverVector = new MediaStateVector(msg.vector);
+          self.serverVector = new StateVector(msg.vector);
 
           // TODO: set the range as well when feature is implemented
 
@@ -266,7 +266,7 @@ define(function (require) {
           }
 
           // Create a new Media state vector from the one received
-          vector = new MediaStateVector(msg.vector);
+          vector = new StateVector(msg.vector);
 
           // Determine whether the change event is to be applied now or to be
           // queued up for later
@@ -301,7 +301,7 @@ define(function (require) {
         }
         logger.log('adjust local vector based on new skew');
         var now = Date.now();
-        self.vector = new MediaStateVector({
+        self.vector = new StateVector({
           position: self.serverVector.position,
           velocity: self.serverVector.velocity,
           acceleration: self.serverVector.acceleration,
@@ -341,7 +341,7 @@ define(function (require) {
    *   If null, the velocity at the current time is used.
    * @param {Number} vector.acceleration The new acceleration.
    *   If null, the acceleration at the current time is used.
-   * @returns {Promise} The promise to get an updated MediaStateVector that
+   * @returns {Promise} The promise to get an updated StateVector that
    *   represents the updated motion on the server once the update command
    *   has been processed by the server.
    *   The promise is rejected if the connection with the online timing service

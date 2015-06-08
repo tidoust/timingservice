@@ -36,7 +36,7 @@ define(function (require) {
         level: 'none'
       },
       {
-        name: 'msv',
+        name: 'StateVector',
         level: 'none'
       }
     ]
