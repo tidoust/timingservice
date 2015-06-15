@@ -24,14 +24,6 @@ define(function (require) {
         level: 'log'
       },
       {
-        name: 'socket server',
-        level: 'log'
-      },
-      {
-        name: 'SocketTimingProvider',
-        level: 'log'
-      },
-      {
         name: 'Interval',
         level: 'none'
       },

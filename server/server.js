@@ -7,14 +7,14 @@
 
 var woodman = require('woodman');
 var woodmanConfig = require('./woodmanConfig');
-var logger = woodman.getLogger('socket server');
+var logger = woodman.getLogger('main');
 
 var WebSocketServer = require('websocket').server;
 var http = require('http');
 var _ = require('underscore');
 
-var TimingObject = require('./TimingObject');
-var stringify = require('./utils').stringify;
+var TimingObject = require('../src/TimingObject');
+var stringify = require('../src/utils').stringify;
 
 
 /**

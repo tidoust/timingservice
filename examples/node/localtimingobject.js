@@ -1,6 +1,6 @@
 var woodman = require('woodman');
-var woodmanConfig = require('../src//woodmanConfig');
-var TimingObject = require('../src/TimingObject');
+var woodmanConfig = require('./woodmanConfig');
+var TimingObject = require('../../src/TimingObject');
 
 woodman.load(woodmanConfig);
 var logger = woodman.getLogger('main');
