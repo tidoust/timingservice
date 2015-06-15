@@ -43,7 +43,14 @@ define(function (require) {
   var SocketSyncClock = require('./SocketSyncClock');
   var isNull = require('./utils').isNull;
   var stringify = require('./utils').stringify;
-  var W3CWebSocket = require('websocket').w3cwebsocket;
+  
+  var W3CWebSocket = null;
+  try {
+    W3CWebSocket = require('websocket').w3cwebsocket;
+  }
+  catch (err) {
+    W3CWebSocket = window.WebSocket;
+  }
 
 
   // Web Sockets ready state constants
@@ -373,7 +380,7 @@ define(function (require) {
       // requires an ack that does not yet exist. Also, should the promise
       // only be resolved when the update is actually done (which may take
       // place after some time and may actually not take place at all?)
-      resolve(newVector);
+      resolve();
     });
   };
 
