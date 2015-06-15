@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Synchronized video demo</title>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css" />
+  </head>
+  <body>
+    <h1>Synchronized video demo</h1>
+
+    <video>
+      <source src="http://media.w3.org/2010/05/sintel/trailer.mp4"
+        type='video/mp4; codecs="avc1, mp4a"' />
+      <source src="http://media.w3.org/2010/05/sintel/trailer.ogv"
+        type='video/ogg; codecs="theora, vorbis"' />
+     <p>Your user agent does not support the HTML5 Video element.</p>
+    </video>
+
+    <p>
+      <button class="pure-button" id="play" disabled>Play</button>
+      <button class="pure-button" id="pause" disabled>Pause</button>
+      <button class="pure-button" id="stop" disabled>Stop</button>
+    </p>
+
+    <table class="pure-table">
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Position</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Timing object</td>
+          <td id="vectorpos"></td>
+        </tr>
+        <tr>
+          <td>Video</td>
+          <td id="videopos"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div id="log"></div>
+  </body>
+  <script
+    type="text/javascript"
+    src="../../node_modules/requirejs/require.js"
+    data-main="video.js"></script>
+</html>
