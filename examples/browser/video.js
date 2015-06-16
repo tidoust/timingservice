@@ -10,12 +10,22 @@ require.config({
 require([
   'src/TimingObject',
   'src/SocketTimingProvider',
+  'src/StateVector',
   'woodman',
   'examples/browser/woodmanConfig',
   'examples/browser/WoodmanElementAppender'
 ], function (
-    TimingObject, SocketTimingProvider,
+    TimingObject, SocketTimingProvider, StateVector,
     woodman, woodmanConfig, ElementAppender) {
+
+  /**********************************************************************
+  No need to deal with time, position and velocity measures that are
+  below 1ms, so round all floats to 3 decimals.
+  **********************************************************************/
+  var roundFloat = function (nb) {
+    return Math.round(nb * 1000) / 1000;
+  };
+
 
   /**********************************************************************
   Global settings to tweak the behavior of the demo when synchronization
@@ -26,17 +36,15 @@ require([
   // below that threshold (in seconds).
   var minDiff = 0.010;
 
-  // Maximum allowed increase/decrease of the playback rate compared to the
-  // velocity of the timing object (in percentage).
-  // TODO: This might not be a useful setting given that one cannot really
-  // "trust" the playbackRate reported by a video in Web browsers
-  var maxPlaybackRateDelta = 30/100;
-
   // Maximum delay for catching up (in seconds).
   // If the code cannot meet the maxPlaybackRateDelta and maxDelay constraints,
   // it will have the video directly seek to the right position.
-  var maxDelay = 2.0;
+  var maxDelay = 1.0;
 
+  // Amortization period (in seconds).
+  // The amortization period is used when adjustments are made to
+  // the playback rate of the video.
+  var amortPeriod = 2.0;
 
 
   /**********************************************************************
@@ -51,77 +59,159 @@ require([
   /**********************************************************************
   Pointers to useful DOM elements
   **********************************************************************/
-  var playButton = document.getElementById('play');
-  var pauseButton = document.getElementById('pause');
-  var stopButton = document.getElementById('stop');
-  var vectorposEl = document.getElementById('vectorpos');
-  var videoposEl = document.getElementById('videopos');
+  var buttons = {
+    play: document.getElementById('play'),
+    pause: document.getElementById('pause'),
+    stop: document.getElementById('stop')
+  };
+  var info = {
+    timing: {
+      position: document.getElementById('timingposition'),
+      velocity: document.getElementById('timingvelocity')
+    },
+    video: {
+      position: document.getElementById('videoposition'),
+      velocity: document.getElementById('videovelocity'),
+      drift: document.getElementById('videodrift')
+    },
+    diff: {
+      position: document.getElementById('diffposition'),
+      velocity: document.getElementById('diffvelocity'),
+      max: {
+        position: document.getElementById('diffpositionmax'),
+        velocity: document.getElementById('diffvelocitymax')
+      }
+    }
+  };
   var video = document.querySelector('video');
 
 
   /**********************************************************************
-  Synchronize video with given state vector
+  Synchronize video with timing information
   **********************************************************************/
-  var lastVelocity = 0.0;
-  var controlVideo = function () {
-    var vector = timing.query();
-    var diff = 0.0;
-    var lastDiff = 0.0;
-    var playbackRateDelta = 0.0;
-    var playbackRate = 0.0;
+  var timingVector = null;
+  var videoVector = null;
+  var videoDriftRate = 0.0;
+  var videoSeeked = false;
+  var amortTimeout = null;
 
-    if ((vector.velocity === 0.0) && (vector.acceleration === 0.0)) {
+  // Whenever the timing object issues a "change" event, we should ensure
+  // the video is aligned with it. If the video was in the middle of an
+  // amortization period, we need to cancel it first.
+  var onTimingChange = function () {
+    if (amortTimeout) {
+      // Cancel amortization period, no update to video drift and playback
+      // rate, that will be taken care of by the call to controlVideo
+      logger.info('cancel amortization period');
+      clearTimeout(amortTimeout);
+      amortTimeout = null;
+      videoSeeked = false;
+    }
+    controlVideo();
+  };
+
+
+  var controlVideo = function () {
+    var diff = 0.0;
+
+    // Do not adjust anything during the amortization period
+    if (amortTimeout) {
+      return;
+    }
+
+    // Get new readings from Timing object
+    timingVector = timing.query();
+
+    if ((timingVector.velocity === 0.0) &&
+        (timingVector.acceleration === 0.0)) {
       logger.info('stop video and seek to right position');
       video.pause();
-      video.currentTime = vector.position;
+      video.currentTime = timingVector.position;
+      videoVector = new StateVector(timingVector);
+    }
+    else if (video.paused) {
+      logger.info('play video');
+      videoVector = new StateVector({
+        position: timingVector.position,
+        velocity: timingVector.velocity + videoDriftRate,
+        acceleration: 0.0,
+        timestamp: timingVector.timestamp
+      });
+      videoSeeked = true;
+      video.currentTime = videoVector.position;
+      video.playbackRate = videoVector.velocity;
+      video.play();
+      logger.info('start amortization period',
+          'diff=' + diff, 'playbackRate=' + videoVector.velocity);
+      amortTimeout = setTimeout(stopAmortizationPeriod, amortPeriod * 1000);
     }
     else {
-      if (video.paused) {
-        logger.info('play video');
-        video.play();
-        video.playbackRate = vector.velocity;
-        lastVelocity = vector.velocity;
-      }
-
-      diff = vector.position - video.currentTime;
+      videoVector = new StateVector({
+        position: video.currentTime,
+        velocity: videoVector.velocity,
+      });
+      diff = timingVector.position - videoVector.position;
       if (Math.abs(diff) < minDiff) {
         logger.info('video and vector are in sync!');
       }
-      else {
-        playbackRateDelta = diff / maxDelay;
-        if (Math.abs(playbackRateDelta) > vector.velocity * maxPlaybackRateDelta) {
-          logger.info('seek video',
-            'diff=' + diff, 'pos=' + vector.position);
-
-          // TODO: seek won't work properly as long as data is not there,
-          // we should take that into account somehow.
-          video.currentTime = vector.position;
-        }
-        else if (lastVelocity === vector.velocity) {
-          playbackRate = vector.velocity + playbackRateDelta;
-          logger.info('adjust playback rate',
-            'diff=' + diff,
-            'playbackRate=' + playbackRate,
-            'velocity=' + vector.velocity);
-          if (Math.abs(lastDiff) >= Math.abs(diff)) {
-            video.playbackRate = video.playbackRate * 1.20;
-          }
-          else {
-            video.playbackRate = video.playbackRate * 1.05;
-          }
-          video.playbackRate = playbackRate;
-        }
-        else {
-          // Timing object velocity has just changed,
-          // let's jump to the same value
-          logger.info('new playback rate', 'velocity=' + vector.velocity);
-          video.playbackRate = vector.velocity;
-        }
-        lastVelocity = vector.velocity;
+      else if (Math.abs(diff) > maxDelay) {
+        // TODO: seek won't work properly as long as data is not there,
+        // we should take that into account somehow.
+        logger.info('seek video and start amortization period',
+          'diff=' + diff, 'pos=' + timingVector.position);
+        videoVector.position = timingVector.position;
+        videoVector.velocity = timingVector.velocity + videoDriftRate;
+        video.currentTime = videoVector.position;
+        video.playbackRate = videoVector.velocity;
+        videoSeeked = true;
+        amortTimeout = setTimeout(stopAmortizationPeriod, amortPeriod * 1000);
       }
-
+      else {
+        videoVector.velocity =
+          videoDriftRate +
+          (timingVector.computePosition(timingVector.timestamp + amortPeriod) -
+            videoVector.position) / amortPeriod;
+        video.playbackRate = videoVector.velocity;
+        logger.info('start amortization period',
+          'diff=' + diff, 'playbackRate=' + videoVector.velocity);
+        amortTimeout = setTimeout(stopAmortizationPeriod, amortPeriod * 1000);
+      }
     }
-    renderPositions();
+    renderStateInfo();
+  };
+
+
+  /**********************************************************************
+  Stops the playback adjustment once the amortization period is over
+  **********************************************************************/
+  var stopAmortizationPeriod = function () {
+    var now = Date.now() / 1000.0;
+
+    // Don't adjust playback rate and drift rate if video was seeked.
+    // The seek operation often introduces artificial delays.
+    if (videoSeeked) {
+      logger.info('end of amortization period for seek');
+      videoSeeked = false;
+      amortTimeout = null;
+      return;
+    }
+
+    // Compute the difference between the position the video should be and
+    // the position it is reported to be at.
+    var diff = videoVector.computePosition(now) - video.currentTime;
+
+    // Compute the new video drift rate
+    videoDriftRate = diff / (now - videoVector.timestamp);
+
+    // Switch back to the current vector's velocity,
+    // adjusted with the newly computed drift rate
+    videoVector.velocity = timingVector.velocity + videoDriftRate;
+    video.playbackRate = videoVector.velocity;
+
+    logger.info('end of amortization period',
+      'new drift=' + videoDriftRate,
+      'playback rate=' + videoVector.velocity);
+    amortTimeout = null;
   };
 
 
@@ -129,14 +219,14 @@ require([
   Create the timing object associated with the online timing service
   **********************************************************************/
   logger.info('create timing object connected to socket...');
-  var timingProvider = new SocketTimingProvider('ws://localhost:8080/video');
+  var timingProvider = new SocketTimingProvider('ws://192.168.0.140:8080/video');
   var timing = new TimingObject();
   timing.srcObject = timingProvider;
   logger.info('create timing object connected to socket... done');
 
   logger.info('add listener to "timeupdate" events...');
   timing.addEventListener('timeupdate', controlVideo);
-  timing.addEventListener('change', controlVideo);
+  timing.addEventListener('change', onTimingChange);
   logger.info('add listener to "timeupdate" events... done');
 
   logger.info('add listener to "readystatechange" events...');
@@ -155,19 +245,19 @@ require([
   effectively starts to play or stops playing when the timing object is
   updated.
   **********************************************************************/
-  playButton.addEventListener('click', function () {
+  buttons.play.addEventListener('click', function () {
     logger.info('set timing object in motion...');
     timing.update(null, 1.0);
     logger.info('set timing object in motion... command sent');
   });
 
-  pauseButton.addEventListener('click', function () {
+  buttons.pause.addEventListener('click', function () {
     logger.info('pause motion...');
     timing.update(null, 0.0);
     logger.info('pause motion... command sent');
   });
 
-  stopButton.addEventListener('click', function () {
+  buttons.stop.addEventListener('click', function () {
     logger.info('stop motion...');
     timing.update(0.0, 0.0);
     logger.info('stop motion... command sent');
@@ -177,27 +267,48 @@ require([
   /**********************************************************************
   Display timing object and video positions
   **********************************************************************/
-  var renderPositions = function () {
+  var maxDiff = {
+    position: 0,
+    velocity: 0
+  };
+  var renderStateInfo = function () {
     var vector = timing.query();
-    vectorposEl.innerHTML = vector.position;
-    videoposEl.innerHTML = video.currentTime;
+    var diff = {
+      position: roundFloat(vector.position - video.currentTime),
+      velocity: roundFloat(vector.velocity - video.playbackRate)
+    };
+    info.timing.position.innerHTML = roundFloat(vector.position);
+    info.timing.velocity.innerHTML = roundFloat(vector.velocity);
+    info.video.position.innerHTML = roundFloat(video.currentTime);
+    info.video.velocity.innerHTML = roundFloat(video.playbackRate);
+    info.video.drift.innerHTML = roundFloat(videoDriftRate);
+    info.diff.position.innerHTML = diff.position;
+    info.diff.velocity.innerHTML = diff.velocity;
+    if (Math.abs(diff.position) > Math.abs(maxDiff.position)) {
+      maxDiff.position = diff.position;
+      info.diff.max.position.innerHTML = diff.position;
+    }
+    if (Math.abs(diff.velocity) > Math.abs(maxDiff.velocity)) {
+      maxDiff.velocity = diff.velocity;
+      info.diff.max.velocity.innerHTML = diff.velocity;
+    }
   };
 
 
   /**********************************************************************
   Listen to video changes
   **********************************************************************/
-  video.addEventListener('timeupdate', renderPositions);
-  video.addEventListener('play', renderPositions);
-  video.addEventListener('pause', renderPositions);
+  video.addEventListener('timeupdate', renderStateInfo);
+  video.addEventListener('play', renderStateInfo);
+  video.addEventListener('pause', renderStateInfo);
 
 
   /**********************************************************************
   Enable commands when timing object is connected
   **********************************************************************/
   var start = function () {
-    playButton.disabled = false;
-    pauseButton.disabled = false;
-    stopButton.disabled = false;
+    buttons.play.disabled = false;
+    buttons.pause.disabled = false;
+    buttons.stop.disabled = false;
   };
 });
