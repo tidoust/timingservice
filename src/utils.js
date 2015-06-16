@@ -9,6 +9,7 @@ if (typeof define !== 'function') {
 }
 
 define(function (require) {
+  var toString = Object.prototype.toString;
 
   /**
    * Returns true when parameter is null
