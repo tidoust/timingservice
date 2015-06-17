@@ -186,6 +186,50 @@ define(function (require) {
       }
     };
 
+
+    /**
+     * Helper function that processes the "info" message from the
+     * socket server when the clock is ready.
+     *
+     * @function
+     */
+    var processInfoWhenPossible = function (msg) {
+      // This should really just happen during initialization
+      if (self.readyState !== 'opening') {
+        logger.warn(
+          'timing info to process but state is "{}"',
+          self.readyState);
+        return;
+      }
+
+      // If clock is not yet ready, schedule processing for when it is
+      // (note that this function should only really be called once but
+      // not a big deal if we receive more than one info message from the
+      // server)
+      if (self.clock.readyState !== 'open') {
+        self.clock.addEventListener('readystatechange', function () {
+          if (self.clock.readyState === 'open') {
+            processInfoWhenPossible(msg);
+          }
+        });
+        return;
+      }
+
+      if (self.clock.delta) {
+        // The info will be applied right away, but if the server imposes
+        // some delta to all clients (to improve synchronization), it
+        // should be applied to the timestamp received.
+        msg.vector.timestamp -= (self.clock.delta / 1000.0);
+      }
+      self.serverVector = new StateVector(msg.vector);
+
+      // TODO: set the range as well when feature is implemented
+
+      // The timing provider object should now be fully operational
+      self.readyState = 'open';
+    };
+
+
     // Initialize the base class with default data
     AbstractTimingProvider.call(this);
 
@@ -239,23 +283,11 @@ define(function (require) {
 
         switch (msg.type) {
         case 'info':
-          if (self.readyState !== 'opening') {
-            logger.log('timing object info already known, ignored');
-            return;
-          }
-
+          // Info received from the socket server but note that the clock may
+          // not yet be synchronized with that of the server, let's wait for
+          // that.
           logger.log('timing object info received', msg.vector);
-          if (self.clock.delta) {
-            // The info will be applied right away, but if the server imposes
-            // some delta to all clients (to improve synchronization), it
-            // should be applied to the timestamp received.
-            msg.vector.timestamp -= (self.clock.delta / 1000.0);
-          }
-          self.serverVector = new StateVector(msg.vector);
-
-          // TODO: set the range as well when feature is implemented
-
-          self.readyState = 'open';
+          processInfoWhenPossible(msg);
           break;
 
         case 'change':
@@ -306,18 +338,13 @@ define(function (require) {
         if (self.readyState !== 'open') {
           return;
         }
-        logger.log('adjust local vector based on new skew');
-        var now = Date.now();
-        self.vector = new StateVector({
-          position: self.serverVector.position,
-          velocity: self.serverVector.velocity,
-          acceleration: self.serverVector.acceleration,
-          timestamp: self.serverVector.timestamp +
-            (now - self.clock.getTime(now)) / 1000.0
-        });
+        logger.log('apply new skew to pending changes');
         scheduleNextPendingChange();
       });
     }
+
+
+
 
     // Check the initial state of the socket connection
     if (this.socket.readyState === OPEN) {

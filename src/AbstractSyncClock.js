@@ -96,7 +96,10 @@ define(function (require) {
         set: function (value) {
           var previousSkew = skew;
           skew = value;
-          if (previousSkew === skew) {
+          if (readyState !== 'open') {
+            logger.log('skew updated, clock not open');
+          }
+          else if (previousSkew === skew) {
             logger.log('skew updated, same as before');
           }
           else {
