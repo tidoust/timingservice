@@ -236,8 +236,14 @@ define(function (require) {
       amortTimeout = null;
 
       controlledElements.forEach(function (wrappedEl) {
-        // Don't adjust playback rate and drift rate if video was seeked.
-        // The seek operation often introduces artificial delays.
+        // Nothing to do if element was not part of amortization period
+        if (!wrappedEl.amortization) {
+          return;
+        }
+        wrappedEl.amortization = false;
+
+        // Don't adjust playback rate and drift rate if video was seeked
+        // or if element was not part of that amortization period.
         if (wrappedEl.seeked) {
           logger.log('end of amortization period for seek');
           wrappedEl.seeked = false;
