@@ -197,11 +197,25 @@ define(function (require) {
      * Define the "srcObject" and "readyState" properties
      */
     Object.defineProperties(this, {
+      /**
+       * The readyState attribute returns the ready state of the underlying
+       * timing provider object
+       */
       readyState: {
         get: function () {
           return timingProvider.readyState;
         }
       },
+
+      /**
+       * On getting, "srcObject" returns a pointer to the current timing
+       * provider instance associated with the timing object, or null if
+       * the timing object is managed locally.
+       *
+       * On setting, "srcObject" associates the timing object with the given
+       * timing provider instance. If null, the timing object goes back to
+       * being locally managed.
+       */
       srcObject: {
         get: function () {
           // Do not return anything if the timing object is managed locally
@@ -246,12 +260,40 @@ define(function (require) {
             }
           }
         }
+      },
+
+
+      /**
+       * Returns the position evaluated at the time when the attribute is read
+       */
+      currentPosition: {
+        get: function () {
+          return timingProvider.query().position;
+        }
+      },
+
+      /**
+       * Returns the velocity evaluated at the time when the attribute is read
+       */
+      currentVelocity: {
+        get: function () {
+          return timingProvider.query().velocity;
+        }
+      },
+
+      /**
+       * Returns the acceleration evaluated at the time when the attribute is
+       * read.
+       */
+      currentAcceleration: {
+        get: function () {
+          return timingProvider.query().acceleration;
+        }
       }
     });
 
     // TODO: implement "range"
     // TODO: implement "vector", "previousVector" properties (is that needed?)
-    // TODO: implement "currentXXX" properties (is that needed?)
     // TODO: implement on... event properties
 
     // Newly created timing object instances are associated with a local timing

@@ -131,7 +131,7 @@ define(function (require) {
        */
       currentTime: {
         get: function () {
-          return timing.query().computePosition(Date.now() / 1000.0);
+          return timing.currentPosition;
         },
         set: function (value) {
           timing.update(value, null);
@@ -154,7 +154,7 @@ define(function (require) {
        */
       playbackRate: {
         get: function () {
-          return timing.query().computeVelocity(Date.now() / 1000.0);
+          return timing.currentVelocity;
         },
         set: function (value) {
           timing.update(null, value);
