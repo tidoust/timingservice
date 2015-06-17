@@ -224,7 +224,7 @@ define(function (require) {
       var roundtripDuration = received - msg.client.sent;
 
       // Check round trip duration
-      if ((self.readyState !== 'opening') &&
+      if ((self.readyState !== 'connecting') &&
           (roundtripDuration > roundtripThreshold)) {
         logger.log('sync message took too long, ignore');
         return;
@@ -239,7 +239,7 @@ define(function (require) {
 
       // During initialization, simply store the response,
       // we'll process things afterwards
-      if (self.readyState === 'opening') {
+      if (self.readyState === 'connecting') {
         logger.log('sync message during initialization, store');
         initialSyncMessages.push({
           received: received,
@@ -308,7 +308,7 @@ define(function (require) {
         timeoutTimeout = null;
         logger.log('sync request timed out');
         if (attempts >= maxAttempts) {
-          if (self.readyState === 'opening') {
+          if (self.readyState === 'connecting') {
             initialize();
           }
           else {
@@ -331,7 +331,7 @@ define(function (require) {
      * @function
      */
     var scheduleNextAttempt = function () {
-      var interval = (self.readyState === 'opening') ?
+      var interval = (self.readyState === 'connecting') ?
         initialInterval :
         attemptInterval;
       if (timeoutTimeout) {

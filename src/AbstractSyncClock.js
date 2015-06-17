@@ -3,8 +3,8 @@
  * value of a reference clock it is synchronized with.
  *
  * This is an abstract base class that returns a dummy clock synchronized with
- * itself (but note readyState remains at "opening", hence the class should not
- * be used directly)
+ * itself (but note readyState remains at "connecting", hence the class should
+ * not be used directly)
  */
 
 // Ensure "define" is defined in node.js in the absence of require.js
@@ -42,7 +42,7 @@ define(function (require) {
     /**
      * The ready state of the synchronized clock
      */
-    var readyState = 'opening';
+    var readyState = 'connecting';
 
     /**
      * Define the "readyState", "skew" and "delta" properties. Note that

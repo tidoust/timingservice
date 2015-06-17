@@ -195,7 +195,7 @@ define(function (require) {
      */
     var processInfoWhenPossible = function (msg) {
       // This should really just happen during initialization
-      if (self.readyState !== 'opening') {
+      if (self.readyState !== 'connecting') {
         logger.warn(
           'timing info to process but state is "{}"',
           self.readyState);

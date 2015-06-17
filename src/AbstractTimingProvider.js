@@ -33,7 +33,7 @@ define(function (require) {
     this.range = new Interval(range);
 
     var currentVector = new StateVector(vector);
-    var readyState = 'opening';
+    var readyState = 'connecting';
     var self = this;
     Object.defineProperties(this, {
       readyState: {
