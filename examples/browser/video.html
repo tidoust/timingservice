@@ -8,7 +8,7 @@
   <body>
     <h1>Synchronized video demo</h1>
 
-    <video width="427">
+    <video width="427" height="240">
       <source src="http://media.w3.org/2010/05/sintel/trailer.mp4"
         type='video/mp4; codecs="avc1, mp4a"' />
       <source src="http://media.w3.org/2010/05/sintel/trailer.ogv"
@@ -28,27 +28,23 @@
           <th>Source</th>
           <th>Position</th>
           <th>Velocity</th>
-          <th>Drift rate</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td>Timing object</td>
+          <td>Sequencer</td>
           <td id="timingposition">0</td>
           <td id="timingvelocity">0</td>
-          <td>N/A</td>
         </tr>
         <tr>
           <td>Video</td>
           <td id="videoposition">0</td>
           <td id="videovelocity">0</td>
-          <td id="videodrift">0</td>
         </tr>
         <tr>
           <th>Diff</th>
           <td><b id="diffposition">0</b></td>
           <td id="diffvelocity">0</td>
-          <td></td>
         </tr>
         <tr>
           <th>Max</th>
