@@ -11,6 +11,8 @@ var logger = woodman.getLogger('main');
 
 var WebSocketServer = require('websocket').server;
 var http = require('http');
+var fs = require('fs');
+var path = require('path');
 var _ = require('underscore');
 
 var TimingObject = require('../src/TimingObject');
@@ -27,6 +29,21 @@ var stringify = require('../src/utils').stringify;
 var originIsAllowed = function (origin) {
   logger.warn('TODO: implement origin check!');
   return true;
+};
+
+
+/**
+ * Return the content-type of a file from its extension
+ */
+var getContentType = function (name) {
+  var reExt = /\.([^\.]+)$/;
+  var match = name.match(reExt);
+  var ext =(match && match[1]) ? match[1] : '';
+  switch (ext) {
+  case 'html': return 'text/html';
+  case 'js': return 'text/javascript';
+  default: return 'text/raw';
+  }
 };
 
 
@@ -84,9 +101,25 @@ if (process.argv.length > 2) {
 
 logger.info('create HTTP server...');
 var server = http.createServer(function (request, response) {
+  var filePath = null;
+
   logger.info('received request for', request.url);
-  response.writeHead(404);
-  response.end();
+  filePath = path.join(__dirname, '..', request.url);
+  fs.stat(filePath, function (err, stat) {
+    if (err) {
+      response.writeHead(404);
+      response.end();
+      return;
+    }
+
+    response.writeHead(200, {
+      'Content-Type': getContentType(filePath),
+      'Content-Length': stat.size
+    });
+
+    var readStream = fs.createReadStream(filePath);
+    readStream.pipe(response);
+  });
 });
 server.listen(8080, function () {
   logger.info('HTTP server is listening on port 8080');

@@ -155,8 +155,6 @@ require([
         logger.info('video and vector are in sync!');
       }
       else if (Math.abs(diff) > maxDelay) {
-        // TODO: seek won't work properly as long as data is not there,
-        // we should take that into account somehow.
         logger.info('seek video and start amortization period',
           'diff=' + diff, 'pos=' + timingVector.position);
         videoVector.position = timingVector.position;
@@ -219,7 +217,8 @@ require([
   Create the timing object associated with the online timing service
   **********************************************************************/
   logger.info('create timing object connected to socket...');
-  var timingProvider = new SocketTimingProvider('ws://192.168.0.140:8080/video');
+  var timingProvider = new SocketTimingProvider(
+    'ws://' + document.location.host + '/video');
   var timing = new TimingObject();
   timing.srcObject = timingProvider;
   logger.info('create timing object connected to socket... done');

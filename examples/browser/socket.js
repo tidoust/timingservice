@@ -22,7 +22,8 @@ require([
   var logger = woodman.getLogger('main');
 
   logger.info('create timing object connected to socket...');
-  var timingProvider = new SocketTimingProvider('ws://localhost:8080/example');
+  var timingProvider = new SocketTimingProvider(
+    'ws://' + document.location.host + '/example');
   var timing = new TimingObject();
   timing.srcObject = timingProvider;
   logger.info('create timing object connected to socket... done');
