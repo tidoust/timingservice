@@ -138,55 +138,32 @@ define(function (require) {
       this.readyState = 'closed';
     }
 
-    // TODO: the code below should rather use "addEventListener"
-    // but the WebSockets library only support basic "onXXX" constructs
-    // so the code works around that. This only works provided the
-    // clock is associated with the socket after the timing provider
-    // object!
-
-    var errorHandler = this.socket.onerror;
-    this.socket.onerror = function (err) {
+    var errorHandler = function (err) {
       logger.warn('WebSocket error', err);
       // TODO: properly deal with network errors
-      if (errorHandler) {
-        errorHandler();
-      }
+      return true;
     };
 
-    var openHandler = this.socket.onopen;
-    this.socket.onopen = function () {
+    var openHandler = function () {
       logger.info('WebSocket client connected');
       sendSyncRequest();
-      if (openHandler) {
-        openHandler();
-      }
+      return true;
     };
 
-    var closeHandler = this.socket.onclose;
-    this.socket.onclose = function () {
+    var closeHandler = function () {
       logger.log('WebSocket closed');
       self.close();
-      if (closeHandler) {
-        closeHandler();
-      }
+      return true;
     };
 
-    var messageHandler = this.socket.onmessage;
-    this.socket.onmessage = function (evt) {
+    var messageHandler = function (evt) {
       var msg = null;
       var received = Date.now();
       var skew = 0;
 
-      var passOn = function () {
-        if (messageHandler) {
-          messageHandler(evt);
-        }
-      };
-
       if (typeof evt.data !== 'string') {
         logger.log('message from server is not a string, pass on');
-        passOn();
-        return;
+        return true;
       }
 
       try {
@@ -194,14 +171,12 @@ define(function (require) {
       }
       catch (err) {
         logger.warn('message from server is not JSON, pass on');
-        passOn();
-        return;
+        return true;
       }
 
       if (msg.type !== 'sync') {
         logger.log('message from server is not a sync message, pass on');
-        passOn();
-        return;
+        return true;
       }
 
       if (!msg.client || !msg.server ||
@@ -209,12 +184,12 @@ define(function (require) {
           !isNumber(msg.server.received) ||
           !isNumber(msg.server.sent)) {
         logger.log('sync message is incomplete, ignore');
-        return;
+        return false;
       }
 
       if (msg.id !== attemptId) {
         logger.log('sync message is not the expected one, ignore');
-        return;
+        return false;
       }
 
       // Message is for us
@@ -227,7 +202,7 @@ define(function (require) {
       if ((self.readyState !== 'connecting') &&
           (roundtripDuration > roundtripThreshold)) {
         logger.log('sync message took too long, ignore');
-        return;
+        return false;
       }
 
       // Cancel the timeout set to detect server timeouts.
@@ -235,7 +210,6 @@ define(function (require) {
         clearTimeout(timeoutTimeout);
         timeoutTimeout = null;
       }
-
 
       // During initialization, simply store the response,
       // we'll process things afterwards
@@ -253,7 +227,7 @@ define(function (require) {
         else {
           scheduleNextAttempt();
         }
-        return;
+        return false;
       }
 
       // Adjust the minimum round trip and threshold if needed
@@ -285,7 +259,51 @@ define(function (require) {
       // No need to schedule another attempt,
       // let's simply schedule the next sync batch of attempts
       scheduleNextBatch();
+
+      return false;
     };
+
+    // NB: calling "addEventListener" does not work in a Node.js environment
+    // because the WebSockets library used only supports basic "onXXX"
+    // constructs. The code below works around that limitation but note that
+    // only works provided the clock is associated with the socket *after* the
+    // timing provider object!
+    var previousErrorHandler = this.socket.onerror;
+    var previousOpenHandler = this.socket.onopen;
+    var previousCloseHandler = this.socket.onclose;
+    var previousMessageHandler = this.socket.onmessage;
+    if (this.socket.addEventListener) {
+      this.socket.addEventListener('error', errorHandler);
+      this.socket.addEventListener('open', openHandler);
+      this.socket.addEventListener('close', closeHandler);
+      this.socket.addEventListener('message', messageHandler);
+    }
+    else {
+      this.socket.onerror = function (evt) {
+        var propagate = errorHandler(evt);
+        if (propagate && previousErrorHandler) {
+          previousErrorHandler(evt);
+        }
+      };
+      this.socket.onopen = function (evt) {
+        var propagate = openHandler(evt);
+        if (propagate && previousOpenHandler) {
+          previousOpenHandler(evt);
+        }
+      };
+      this.socket.onclose = function (evt) {
+        var propagate = closeHandler(evt);
+        if (propagate && previousCloseHandler) {
+          previousCloseHandler(evt);
+        }
+      };
+      this.socket.onmessage = function (evt) {
+        var propagate = messageHandler(evt);
+        if (propagate && previousMessageHandler) {
+          previousMessageHandler(evt);
+        }
+      };
+    }
 
 
     /**
