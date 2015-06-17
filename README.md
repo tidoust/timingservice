@@ -2,7 +2,7 @@
 
 This repository contains the source code of a prototype implementation in Node.js using a WebSocket server of an **online timing resource** as defined in the draft [Timing Object](http://webtiming.github.io/timingobject/) specification developed by the [Multi-Device Timing Community Group](http://www.w3.org/Community/webtiming) in W3C.
 
-**Important:** This is both **work in progress** and **a prototype**. The code may not run properly and is only really meant to be used for testing. The initial goal is to explore the interfaces that need to be exposed and defined in the Timing Object specification, not necessarily to provide an accurate implementation of the spec. In particular, the clock synchronization mechanism implemented so far is crude and probably yields very bad results.
+**Important:** This is both **work in progress** and **a prototype**. The code may not run properly and is only really meant to be used for testing. The initial goal is to explore the interfaces that need to be exposed and defined in the Timing Object specification, not necessarily to provide an accurate implementation of the spec. In particular, the clock synchronization mechanism implemented so far is somewhat basic.
 
 ## How to install
 
@@ -21,15 +21,15 @@ The code is divided into two parts:
 1. The `TimingObject` implementation that runs both in Web browsers and Node.js environments.
 2. The online timing service implementation using WebSockets that runs in a Node.js environment.
 
-To run the online timing service implementation locally, run `node server/server.js` in your bash. This will start the socket server on port `8080` on `localhost`.
+To run the online timing service implementation locally, run `node server/server.js` in your bash. This will start the HTTP and socket server on port `8080` on `localhost`.
 
-To run the Node.js example that uses the `TimingObject` implementation and connect to the online timing service, run `node examples/node/sockettiming.js` in *another* command-line window to start a client that connects to the socket server, runs a couple of update actions on the underlying timing object, and exits afterwards.
+To run the video synchronization exampls in your Web browser, open `http://localhost:8080/examples/browser/video.html` in two different browser windows, or using your local IP address instead of localhost (beware of your firewall settings), on two different computers. You should be able to play/pause/stop the video, which should play *almost in sync* in both browser windows. The actual result depends on your machine and on the Web browser you are using. Video will likely appear more in sync than audio.
 
-To run the browser example that uses the `TimingObject` implementation and connect to the online timing service, open the `examples/browser/socket.html` page in your browser.
+**Beware:** the demo does not yet support media buffering issues, so wait for your Web browser to complete the downloading of the video before playing. You may get a black or white screen instead of the video otherwise.
 
-Before you run any of the above examples, you may also run `node examples/node/sockettiminglistener.js` in *another* command-line window. This will start a client that connects to the socket server and listens to all changes made to a particular timing object. This is optional.
+Check the `examples` folder for other (more basic) examples to run in your browser or in a Node.js environment. For instance, to run the Node.js example that uses the `TimingObject` implementation and connect to the online timing service, run `node examples/node/sockettiming.js` in *another* command-line window to start a client that connects to the socket server, runs a couple of update actions on the underlying timing object, and exits afterwards.
 
-**NB:** The examples are pretty rough. They do not really illustrate the fact that all clients are synchronized with the online timing service in particular.
+**NB:** The examples are still pretty rough. Remember that this is a prototype!
 
 
 ## Notes on the code
@@ -40,6 +40,8 @@ In particular, a timing object may either be associated with a `LocalTimingProvi
 
 When a `SocketTimingProvider` instance is created, it creates a Web socket connection to the given URL and creates a `SocketSyncClock` associated with that connection to adjust the timestamps that the server sends based on an estimation of the local clock's skew relative to that of the server.
 
+The `Sequencer` class provides the glue between a timing object and a media element in HTML.
+
 The code uses [Woodman](http://joshfire.github.io/woodman/index.html) to output logs when it runs. To log more things or to stop logging altogether, you may change Woodman's configuration used for the online timing service in `server/woodmanConfig.js`, that used for the browser examples in `examples/browser/woodmanConfig.js` and that used for the Node.js examples in `examples/node/woodmanConfig.js`.
 
 
@@ -48,9 +50,6 @@ The code uses [Woodman](http://joshfire.github.io/woodman/index.html) to output 
 * Add missing properties on the timing object or drop them from the spec
 * Implement range intervals
 * Create more useful examples
-* Explore how timing objects can be used to control media elements (e.g. a video)
-* Improve the clock synchronization mechanism, be it only to take round trip times into account
-* Ensure TimingObject.timestamp is monotonic
 
 
 ## License
