@@ -184,12 +184,12 @@ define(function (require) {
           !isNumber(msg.server.received) ||
           !isNumber(msg.server.sent)) {
         logger.log('sync message is incomplete, ignore');
-        return false;
+        return true;
       }
 
       if (msg.id !== attemptId) {
         logger.log('sync message is not the expected one, ignore');
-        return false;
+        return true;
       }
 
       // Message is for us
@@ -205,10 +205,18 @@ define(function (require) {
         return false;
       }
 
-      // Cancel the timeout set to detect server timeouts.
       if (timeoutTimeout) {
+        // Cancel the timeout set to detect server timeouts.
         clearTimeout(timeoutTimeout);
         timeoutTimeout = null;
+      }
+      else {
+        // A timeout already occurred
+        // (should have normally be trapped by the check on round trip
+        // duration, but timeout scheduling and the event loop are not
+        // an exact science)
+        logger.log('sync message took too long, ignore');
+        return false;
       }
 
       // During initialization, simply store the response,
@@ -356,6 +364,10 @@ define(function (require) {
         clearTimeout(timeoutTimeout);
         timeoutTimeout = null;
       }
+      if (attemptTimeout) {
+        clearTimeout(attemptTimeout);
+        attemptTimeout = null;
+      }
       attemptTimeout = setTimeout(sendSyncRequest, interval);
     };
 
@@ -370,8 +382,12 @@ define(function (require) {
         clearTimeout(timeoutTimeout);
         timeoutTimeout = null;
       }
+      if (attemptTimeout) {
+        clearTimeout(attemptTimeout);
+        attemptTimeout = null;
+      }
       attempts = 0;
-      attemptTimeout= setTimeout(sendSyncRequest, batchInterval);
+      attemptTimeout = setTimeout(sendSyncRequest, batchInterval);
     };
 
 
