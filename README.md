@@ -40,7 +40,7 @@ In particular, a timing object may either be associated with a `LocalTimingProvi
 
 When a `SocketTimingProvider` instance is created, it creates a Web socket connection to the given URL and creates a `SocketSyncClock` associated with that connection to adjust the timestamps that the server sends based on an estimation of the local clock's skew relative to that of the server.
 
-The `Sequencer` class provides the glue between a timing object and a media element in HTML.
+The `TimingMediaController` class provides the glue between a timing object and a media element in HTML.
 
 The code uses [Woodman](http://joshfire.github.io/woodman/index.html) to output logs when it runs. To log more things or to stop logging altogether, you may change Woodman's configuration used for the online timing service in `server/woodmanConfig.js`, that used for the browser examples in `examples/browser/woodmanConfig.js` and that used for the Node.js examples in `examples/node/woodmanConfig.js`.
 

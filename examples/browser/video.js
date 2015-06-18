@@ -10,13 +10,13 @@ require.config({
 require([
   'src/TimingObject',
   'src/SocketTimingProvider',
-  'src/Sequencer',
+  'src/TimingMediaController',
   'src/StateVector',
   'woodman',
   'examples/browser/woodmanConfig',
   'examples/browser/WoodmanElementAppender'
 ], function (
-    TimingObject, SocketTimingProvider, Sequencer, StateVector,
+    TimingObject, SocketTimingProvider, TimingMediaController, StateVector,
     woodman, woodmanConfig, ElementAppender) {
 
   /**********************************************************************
@@ -75,18 +75,18 @@ require([
   **********************************************************************/
   buttons.play.addEventListener('click', function () {
     logger.info('play video');
-    sequencer.play();
+    controller.play();
   });
 
   buttons.pause.addEventListener('click', function () {
     logger.info('pause video');
-    sequencer.pause();
+    controller.pause();
   });
 
   buttons.stop.addEventListener('click', function () {
     logger.info('stop video');
-    sequencer.pause();
-    sequencer.currentTime = 0.0;
+    controller.pause();
+    controller.currentTime = 0.0;
   });
 
 
@@ -98,8 +98,8 @@ require([
     velocity: 0
   };
   var renderStateInfo = function () {
-    var position = sequencer.currentTime;
-    var velocity = sequencer.playbackRate;
+    var position = controller.currentTime;
+    var velocity = controller.playbackRate;
     var diff = {
       position: roundFloat(position - video.currentTime),
       velocity: roundFloat(velocity - video.playbackRate)
@@ -131,16 +131,16 @@ require([
   timing.srcObject = timingProvider;
   logger.info('create timing object connected to socket... done');
 
-  logger.info('create sequencer...');
-  var sequencer = new Sequencer(timing);
-  sequencer.addMediaElement(video);
-  logger.info('create sequencer... done');
+  logger.info('create controller...');
+  var controller = new TimingMediaController(timing);
+  controller.addMediaElement(video);
+  logger.info('create controller... done');
 
   logger.info('add listener to "timeupdate" events...');
-  sequencer.addEventListener('timeupdate', renderStateInfo);
+  controller.addEventListener('timeupdate', renderStateInfo);
 
   logger.info('add listener to "readystatechange" events...');
-  sequencer.addEventListener('readystatechange', function (evt) {
+  controller.addEventListener('readystatechange', function (evt) {
     logger.info('readystatechange event', 'state=' + evt.value);
     if (evt.value === 'open') {
       start();

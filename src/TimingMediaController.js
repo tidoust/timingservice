@@ -1,16 +1,17 @@
 /**
- * @file A sequencer takes inputs from a timing object and harnesses one or
- * more HTML media elements (audio, video, media controller) accordingly.
+ * @file A timing media controller takes inputs from a timing object and
+ * harnesses one or more HTML media elements (audio, video, media controller)
+ * accordingly.
  *
- * A sequencer exposes usual media element controls such as "play", "pause"
- * methods as well as "currentTime" and "playbackRate" attributes. Internally,
- * calling these methods or setting these attributes update the timing object's
- * state vector, which should in turn affect the HTML media elements that the
- * sequencer harnesses.
+ * A timing media controller exposes usual media element controls such as
+ * "play", "pause" methods as well as "currentTime" and "playbackRate"
+ * attributes. Internally, calling these methods or setting these attributes
+ * update the timing object's state vector, which should in turn affect the
+ * HTML media elements that the timing media controller harnesses.
  *
- * Said differently, commands sent to a sequencer are not directly applied to
- * the HTML media elements under control. Everything goes through the timing
- * object to enable cross-device synchronization effects.
+ * Said differently, commands sent to a timing media controller are not
+ * directly applied to the HTML media elements under control. Everything goes
+ * through the timing object to enable cross-device synchronization effects.
  *
  * TODO: add logic to handle buffering hiccups in media elements.
  * TODO: add logic to remove elements from the list of controlled elements.
@@ -24,7 +25,7 @@ if (typeof define !== 'function') {
 
 define(function (require) {
   var woodman = require('woodman');
-  var logger = woodman.getLogger('Sequencer');
+  var logger = woodman.getLogger('TimingMediaController');
 
   var EventTarget = require('event-target');
   var TimingObject = require('./TimingObject');
@@ -32,13 +33,13 @@ define(function (require) {
 
 
   /**
-   * Constructor of a sequencer
+   * Constructor of a timing media controller
    *
    * @class
-   * @param {TimingObject} timing The timing object attached to the sequencer
-   * @param {Object} options Sequencer settings
+   * @param {TimingObject} timing The timing object attached to the controller
+   * @param {Object} options controller settings
    */
-  var Sequencer = function (timing, options) {
+  var TimingMediaController = function (timing, options) {
     var self = this;
     options = options || {};    
 
@@ -47,7 +48,7 @@ define(function (require) {
     }
 
     /**
-     * The sequencer's internal settings
+     * The timing media controller's internal settings
      */
     var settings = {
       // Media elements are considered in sync with the timing object if the
@@ -68,9 +69,9 @@ define(function (require) {
 
 
     /**
-     * The list of Media elements controlled by this sequencer.
+     * The list of Media elements controlled by this timing media controller.
      *
-     * For each media element, the sequencer maintains a state vector
+     * For each media element, the controller maintains a state vector
      * representation of the element's position and velocity, a drift rate
      * to adjust the playback rate, whether we asked the media element to
      * seek or not, and whether there is an amortization period running for
@@ -97,7 +98,7 @@ define(function (require) {
 
     /**
      * Pointer to the amortization period timeout.
-     * The sequencer uses only one amortization period for all media elements
+     * The controller uses only one amortization period for all media elements
      * under control.
      */
     var amortTimeout = null;
@@ -120,7 +121,7 @@ define(function (require) {
       /**
        * The currentTime attribute returns the position that all controlled
        * media elements should be at, in other words the position of the
-       * sequencer when this method is called.
+       * timing media controller when this method is called.
        *
        * On setting, the timing object's state vector is updated with the
        * provided value, which will (asynchronously) affect all controlled
@@ -140,10 +141,10 @@ define(function (require) {
 
 
       /**
-       * The current playback rate of the sequencer (controlled media elements
+       * The current playback rate of the controller (controlled media elements
        * may have a slightly different playback rate since the role of the
-       * sequencer is precisely to adjust their playback rate to ensure they
-       * keep up with the sequencer's position.
+       * controller is precisely to adjust their playback rate to ensure they
+       * keep up with the controller's position.
        *
        * On setting, the timing object's state vector is updated with the
        * provided value, which will (asynchronously) affect all controlled
@@ -185,11 +186,11 @@ define(function (require) {
 
     /**
      * Add a media element to the list of elements controlled by this
-     * sequencer
+     * controller
      *
      * @function
      * @param {MediaElement} element The media element to associate with the
-     *  sequencer.
+     *  controller.
      */
     this.addMediaElement = function (element) {
       var found = false;
@@ -397,12 +398,12 @@ define(function (require) {
   };
 
 
-  // Sequencer implements EventTarget
-  Sequencer.prototype.addEventListener = EventTarget.addEventListener;
-  Sequencer.prototype.removeEventListener = EventTarget.removeEventListener;
-  Sequencer.prototype.dispatchEvent = EventTarget.dispatchEvent;
+  // TimingMediaController implements EventTarget
+  TimingMediaController.prototype.addEventListener = EventTarget.addEventListener;
+  TimingMediaController.prototype.removeEventListener = EventTarget.removeEventListener;
+  TimingMediaController.prototype.dispatchEvent = EventTarget.dispatchEvent;
 
 
   // Expose the class to the outer world
-  return Sequencer;
+  return TimingMediaController;
 });
