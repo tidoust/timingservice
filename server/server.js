@@ -14,7 +14,7 @@ var http = require('http');
 var fs = require('fs');
 var path = require('path');
 var _ = require('underscore');
-
+var Promise = require('promise');
 var TimingObject = require('../src/TimingObject');
 var stringify = require('../src/utils').stringify;
 
