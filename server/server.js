@@ -105,7 +105,8 @@ var server = http.createServer(function (request, response) {
   logger.info('received request for', request.url);
   filePath = path.join(__dirname, '..', request.url);
   fs.stat(filePath, function (err, stat) {
-    if (err) {
+    console.log(stat)
+    if (err || stat.isDirectory()) {
       response.writeHead(404);
       response.end();
       return;
