@@ -32,4 +32,3 @@ setTimeout(function () {
   logger.info('sleep for a few seconds... done');
   logger.info('The end');
 }, 5000);
-

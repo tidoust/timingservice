@@ -3,7 +3,8 @@ require.config({
   paths: {
     'woodman': 'node_modules/woodman/dist/woodman',
     'event-target': 'node_modules/event-target/build/event-target.amd',
-    'websocket': 'node_modules/websocket/lib/browser'
+    'websocket': 'node_modules/websocket/lib/browser',
+    'promise': 'node_modules/promise/lib/index'
   }
 });
 
